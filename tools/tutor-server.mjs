@@ -49,14 +49,25 @@ function buildPrompt(messages) {
   return lines.join("\n");
 }
 
-function askClaude({ model, system, messages }) {
+// The browser may request research tools, but only from this allowlist —
+// the bridge must never expose Bash/file tools to a web page.
+const ALLOWED_TOOLS = new Set(["WebSearch", "WebFetch"]);
+
+function askClaude({ model, system, messages, tools }) {
   return new Promise((resolve, reject) => {
+    const safeTools = (Array.isArray(tools) ? tools : [])
+      .filter((t) => ALLOWED_TOOLS.has(t))
+      .join(",");
     const args = [
       "-p",
       "--output-format", "json",
       "--model", model,
       "--system-prompt", system,
-      "--tools", "", // pure chat: no tool use, no agentic loop
+      // "" = pure chat (hints). "WebSearch,WebFetch" lets the tutor research:
+      // --tools restricts the toolset, --allowedTools pre-approves them so
+      // headless mode never blocks on a permission prompt.
+      "--tools", safeTools,
+      ...(safeTools ? ["--allowedTools", safeTools] : []),
     ];
     const child = spawn(CLAUDE_BIN, args, { cwd: process.cwd() });
     let stdout = "";
@@ -121,7 +132,7 @@ const server = createServer(async (req, res) => {
     }
     const started = Date.now();
     try {
-      const text = await askClaude({ model, system: body.system, messages: body.messages });
+      const text = await askClaude({ model, system: body.system, messages: body.messages, tools: body.tools });
       console.log(`[tutor] ${model} answered in ${((Date.now() - started) / 1000).toFixed(1)}s (${text.length} chars)`);
       send(res, 200, { text });
     } catch (err) {
