@@ -44,16 +44,17 @@ Plus the **Claude tutor panel** (spec below) — present on every lesson page, f
 
 ## Claude tutor panel spec
 
-The one sanctioned exception to "zero external requests": an OPTIONAL, user-initiated call to the Anthropic API. The page must remain fully functional offline — the tutor simply reports a network error when unreachable.
+The one sanctioned exception to "zero external requests": an OPTIONAL, user-initiated call to the **local tutor server** (`tools/tutor-server.mjs`, started with `pnpm tutor`, listening on `http://127.0.0.1:8765`). The server spawns the local `claude` CLI, so tutor answers bill Antonio's Claude subscription — NEVER generate an Anthropic API-key input or a direct `api.anthropic.com` fetch (that burns API credits; Antonio has explicitly forbidden it). The page must remain fully functional offline — when the server is unreachable the tutor shows "offline — run: pnpm tutor" and the failed question is recoverable.
 
 - Floating toggle button bottom-right ("Tutor · ask Claude") opening a fixed chat panel.
-- Setup row: password input for the API key (persisted to `localStorage` key `nordhem-tutor-key`, never embedded in the file) + model dropdown (`claude-opus-4-8` default, `claude-sonnet-4-6`, `claude-haiku-4-5`), persisted to `nordhem-tutor-model`.
-- First message in the thread is a note: key stays in the browser, calls go directly to api.anthropic.com, rough cost per question, offline behavior.
-- Raw `fetch` to `POST https://api.anthropic.com/v1/messages` with headers `x-api-key`, `anthropic-version: 2023-06-01`, `content-type: application/json`, and `anthropic-dangerous-direct-browser-access: true` (required for CORS from a page). `max_tokens: 1024`, non-streaming. No sampling params (removed on current Opus models).
-- Multi-turn: keep a `[{role, content}]` array for the page visit and send the whole thread each time; on API/network error, pop the failed user turn so the thread stays valid.
-- System prompt per step: tutor persona, the step's concept list (so it can answer without the lesson text), Antonio + interview context, teaching rules (plain text, no markdown, no em-dashes, under ~200 words, hint-before-solution for code, only full solutions on explicit request, connect answers to the real project and the interview).
+- Setup row: a server status indicator (dot + "tutor server online" / "offline — run: pnpm tutor", refreshed via `GET /health` whenever the panel opens) + model dropdown with values `opus` (default), `sonnet`, `haiku`, persisted to `localStorage` key `nordhem-tutor-model`.
+- First message in the thread is a note: runs through Claude Code on this PC on the subscription, no API key, no per-token charges, start with `pnpm tutor`, rest of the lesson works offline.
+- `fetch` to `POST http://127.0.0.1:8765/tutor` with JSON body `{ model, system, messages }`; response is `{ text }` or `{ error }`. On network failure, show the run-`pnpm tutor` hint and re-check `/health`.
+- Multi-turn: keep a `[{role, content}]` array for the page visit and send the whole thread each time (the server is stateless); on error, pop the failed user turn so the thread stays valid.
+- System prompt per step (sent as `system` in the request body): tutor persona, the step's concept list (so it can answer without the lesson text), Antonio + interview context, teaching rules (plain text, no markdown, no em-dashes, under ~200 words, hint-before-solution for code, only full solutions on explicit request, connect answers to the real project and the interview).
 - Render the thread as plain-text chat bubbles (`white-space: pre-wrap`) — instruct the model to answer in plain text, don't ship a markdown renderer.
 - Quiz learning records still flow through the **Copy results for Claude** button — a browser page cannot write `teaching/learning-records/`, so the paste-back loop stays.
+- `tools/tutor-server.mjs` is shared by all steps — do not generate a new server per step; only the per-step system prompt in the HTML changes.
 
 ## Quiz spec
 
@@ -65,7 +66,7 @@ The one sanctioned exception to "zero external requests": an OPTIONAL, user-init
 
 ## Style contract
 
-- **One file, fully self-contained**: inline CSS, inline vanilla JS, inline SVG. ZERO external requests for assets (no CDNs, no fonts, no images) — files must open offline forever. The only network call allowed is the tutor panel's user-initiated Anthropic API call, and the page must degrade gracefully without it.
+- **One file, fully self-contained**: inline CSS, inline vanilla JS, inline SVG. ZERO external requests for assets (no CDNs, no fonts, no images) — files must open offline forever. The only network call allowed is the tutor panel's user-initiated call to the local tutor server (`127.0.0.1:8765`), and the page must degrade gracefully without it.
 - NORDHEM-adjacent design tokens, defined inline: warm paper background `#FAF7F2`, ink `#20262E`, accent `#2F6F62`, amber highlight `#C8842C`, generous whitespace, max-width ~72ch for prose, system font stack with `Georgia`-ish serif for body or clean sans — readable like Tufte, not like a dashboard.
 - Code blocks: dark panel, simple inline token highlighting (keywords/strings/comments via spans you emit yourself — no highlight.js).
 - Print-friendly (`@media print`: hide quiz interactivity, show answers appendix).
