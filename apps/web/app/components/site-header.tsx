@@ -1,6 +1,8 @@
 import { SHOP_CATEGORIES } from "@nordhem/shared";
 import { Heart, Search, ShoppingBag } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
+import { SearchCombobox } from "./search-combobox";
 
 export function SiteHeader() {
   return (
@@ -13,20 +15,29 @@ export function SiteHeader() {
           NORDHEM
         </Link>
 
-        <form action="/search" className="relative mx-auto w-full max-w-xl">
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-ink-muted"
-            strokeWidth={1.75}
-          />
-          <input
-            type="search"
-            name="q"
-            placeholder="Search beds, sofas, lighting…"
-            aria-label="Search products"
-            className="h-11 w-full rounded-xs border border-line bg-card pl-11 pr-4 text-[15px] placeholder:text-ink-muted"
-          />
-        </form>
+        {/* useSearchParams needs a Suspense boundary; the fallback is the
+            same input, inert, so the header never shifts. */}
+        <Suspense
+          fallback={
+            <form action="/search" className="relative mx-auto w-full max-w-xl">
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-ink-muted"
+                strokeWidth={1.75}
+              />
+              <input
+                type="text"
+                name="q"
+                placeholder="Search beds, sofas, lighting…"
+                aria-label="Search products"
+                autoComplete="off"
+                className="h-11 w-full rounded-xs border border-line bg-card pl-11 pr-4 text-[15px] placeholder:text-ink-muted"
+              />
+            </form>
+          }
+        >
+          <SearchCombobox />
+        </Suspense>
 
         <div className="flex shrink-0 items-center gap-1 text-ink-muted">
           <span
