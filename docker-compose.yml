@@ -1,0 +1,50 @@
+name: nordhem
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.3.1
+    environment:
+      # Single-node dev cluster: no TLS/auth ceremony locally. Production
+      # hardening is a step-12 concern (the tunnel never exposes ES directly).
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.3.1
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17
+    environment:
+      - POSTGRES_USER=nordhem
+      - POSTGRES_PASSWORD=nordhem
+      - POSTGRES_DB=nordhem
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nordhem -d nordhem"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  esdata:
+  pgdata:
