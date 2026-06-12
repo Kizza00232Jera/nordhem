@@ -14,8 +14,10 @@
 
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { randomBytes } from "node:crypto";
 
 const PORT = Number(process.env.TUTOR_PORT ?? 8765);
 const TIMEOUT_MS = 180_000;
@@ -58,11 +60,19 @@ function askClaude({ model, system, messages, tools }) {
     const safeTools = (Array.isArray(tools) ? tools : [])
       .filter((t) => ALLOWED_TOOLS.has(t))
       .join(",");
+    // The system prompt carries the whole lesson page (30 KB+). Windows caps
+    // a command line at ~32 KB, so it goes via a temp file, never via argv
+    // (the argv version dies with spawn ENAMETOOLONG).
+    const systemFile = join(tmpdir(), `nordhem-tutor-${randomBytes(6).toString("hex")}.txt`);
+    writeFileSync(systemFile, system, "utf8");
+    const cleanup = () => {
+      try { unlinkSync(systemFile); } catch {}
+    };
     const args = [
       "-p",
       "--output-format", "json",
       "--model", model,
-      "--system-prompt", system,
+      "--system-prompt-file", systemFile,
       // "" = pure chat (hints). "WebSearch,WebFetch" lets the tutor research:
       // --tools restricts the toolset, --allowedTools pre-approves them so
       // headless mode never blocks on a permission prompt.
@@ -81,10 +91,12 @@ function askClaude({ model, system, messages, tools }) {
     child.stderr.on("data", (d) => (stderr += d));
     child.on("error", (err) => {
       clearTimeout(timer);
+      cleanup();
       reject(new Error("could not start claude (" + CLAUDE_BIN + "): " + err.message));
     });
     child.on("close", (code) => {
       clearTimeout(timer);
+      cleanup();
       if (code !== 0) {
         return reject(new Error("claude exited " + code + ": " + (stderr || stdout).slice(0, 500)));
       }
@@ -140,6 +152,17 @@ const server = createServer(async (req, res) => {
       send(res, 502, { error: err.message });
     }
   });
+});
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(
+      `Port ${PORT} is already in use — another tutor server is running.\n` +
+        "If you just updated the code, stop the old one (Ctrl+C in its terminal) and run pnpm tutor again.",
+    );
+    process.exit(1);
+  }
+  throw err;
 });
 
 server.listen(PORT, "127.0.0.1", () => {

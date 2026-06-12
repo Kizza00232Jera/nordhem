@@ -42,3 +42,25 @@ export const SearchResponseSchema = z.object({
 
 export type SearchHit = z.infer<typeof SearchHitSchema>;
 export type SearchResponse = z.infer<typeof SearchResponseSchema>;
+
+/**
+ * Autocomplete contract: deliberately lighter than a search hit — the
+ * combobox needs a label and enough to render a thumbnail row, nothing
+ * else. Card fields appear on shop-scope suggestions only.
+ */
+export const AutocompleteSuggestionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string().optional(),
+  priceCents: z.number().int().optional(),
+  imageThumbUrl: z.string().nullable().optional(),
+});
+
+export const AutocompleteResponseSchema = z.object({
+  query: z.string(),
+  tookMs: z.number().nonnegative(),
+  suggestions: z.array(AutocompleteSuggestionSchema),
+});
+
+export type AutocompleteSuggestion = z.infer<typeof AutocompleteSuggestionSchema>;
+export type AutocompleteResponse = z.infer<typeof AutocompleteResponseSchema>;

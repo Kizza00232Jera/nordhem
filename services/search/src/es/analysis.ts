@@ -74,6 +74,9 @@ const nameField: estypes.MappingProperty = {
   fields: {
     keyword: { type: "keyword", ignore_above: 256 },
     trigram: { type: "text", analyzer: "trigram" },
+    // search_as_you_type builds ._2gram, ._3gram and ._index_prefix
+    // companions automatically — the autocomplete query targets those.
+    sayt: { type: "search_as_you_type" },
   },
 };
 

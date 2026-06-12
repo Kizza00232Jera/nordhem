@@ -1,9 +1,9 @@
 import { ElasticsearchContainer, type StartedElasticsearchContainer } from "@testcontainers/elasticsearch";
-import { SearchResponseSchema } from "@nordhem/shared";
+import { AutocompleteResponseSchema, SearchResponseSchema } from "@nordhem/shared";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createEsClient } from "../../src/es/client.ts";
-import { indexProducts } from "../../src/es/indexer.ts";
+import { indexProducts, indexShopDocuments, type ShopDocument } from "../../src/es/indexer.ts";
 import { buildApp } from "../../src/server.ts";
 import type { RawProduct } from "../../src/wands/parse.ts";
 
@@ -45,6 +45,29 @@ const FIXTURES: RawProduct[] = [
   }),
 ];
 
+const SHOP_FIXTURES: ShopDocument[] = [
+  {
+    product_id: 2,
+    name: "velvet accent chair",
+    product_class: "Accent Chairs",
+    description: "plush emerald velvet chair",
+    slug: "velvet-accent-chair-2",
+    category: "sofas",
+    price_cents: 49999,
+    image_thumb_url: "https://images.unsplash.com/photo-velvet?w=400",
+  },
+  {
+    product_id: 3,
+    name: "three-seat fabric sofa",
+    product_class: "Sofas",
+    description: "deep-seated fabric sofa in oat boucle",
+    slug: "three-seat-fabric-sofa-3",
+    category: "sofas",
+    price_cents: 89999,
+    image_thumb_url: null,
+  },
+];
+
 let container: StartedElasticsearchContainer;
 let app: FastifyInstance;
 
@@ -58,6 +81,7 @@ beforeAll(async () => {
     .start();
   const es = createEsClient(container.getHttpUrl());
   await indexProducts(es, INDEX, FIXTURES);
+  await indexShopDocuments(es, SHOP_INDEX, SHOP_FIXTURES);
   app = buildApp({ es, index: INDEX, shopIndex: SHOP_INDEX });
 });
 
@@ -115,6 +139,34 @@ describe("query understanding: did you mean", () => {
 
     const body = SearchResponseSchema.parse(res.json());
     expect(body.suggestion).toBeUndefined();
+  });
+});
+
+describe("GET /autocomplete", () => {
+  // search_as_you_type + bool_prefix: the last word is matched as a
+  // prefix, completed words are matched normally.
+  it('completes the prefix "vel" to the velvet chair with card fields', async () => {
+    const res = await app.inject({ url: "/autocomplete?q=vel&scope=shop" });
+
+    expect(res.statusCode).toBe(200);
+    const body = AutocompleteResponseSchema.parse(res.json());
+    expect(body.suggestions[0]).toMatchObject({
+      name: "velvet accent chair",
+      slug: "velvet-accent-chair-2",
+      priceCents: 49999,
+      imageThumbUrl: "https://images.unsplash.com/photo-velvet?w=400",
+    });
+  });
+
+  it('completes a mid-phrase prefix: "fabric so" finds the sofa', async () => {
+    const res = await app.inject({ url: "/autocomplete?q=fabric so&scope=shop" });
+
+    const body = AutocompleteResponseSchema.parse(res.json());
+    expect(body.suggestions.map((s) => s.name)).toContain("three-seat fabric sofa");
+  });
+
+  it("rejects a missing q with 400", async () => {
+    expect((await app.inject({ url: "/autocomplete" })).statusCode).toBe(400);
   });
 });
 

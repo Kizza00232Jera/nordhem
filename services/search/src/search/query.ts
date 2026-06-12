@@ -49,3 +49,25 @@ export function buildSearchBody(
     size,
   };
 }
+
+/**
+ * Autocomplete: bool_prefix scores completed words like a normal match
+ * and treats only the word being typed as a prefix. The 2/3-gram
+ * subfields make multi-word prefixes ("fabric so") rank phrases whose
+ * words appear together, in order.
+ */
+export function buildAutocompleteBody(
+  query: string,
+  size: number,
+): estypes.SearchRequest {
+  return {
+    query: {
+      multi_match: {
+        query,
+        type: "bool_prefix",
+        fields: ["name.sayt", "name.sayt._2gram", "name.sayt._3gram"],
+      },
+    },
+    size,
+  };
+}

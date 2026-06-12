@@ -1,5 +1,6 @@
 import type { Client } from "@elastic/elasticsearch";
 import Fastify, { type FastifyInstance } from "fastify";
+import { autocompleteProducts } from "./search/autocomplete.ts";
 import { searchProducts } from "./search/search.ts";
 
 export interface AppDeps {
@@ -28,6 +29,21 @@ export function buildApp({ es, index, shopIndex, logger = false }: AppDeps): Fas
         return reply.code(400).send({ error: 'scope must be "all" or "shop"' });
       }
       return searchProducts(es, scope === "shop" ? shopIndex : index, query);
+    },
+  );
+
+  app.get<{ Querystring: { q?: string; scope?: string } }>(
+    "/autocomplete",
+    async (req, reply) => {
+      const query = req.query.q?.trim();
+      if (!query) {
+        return reply.code(400).send({ error: "query parameter q is required" });
+      }
+      const scope = req.query.scope ?? "shop";
+      if (scope !== "all" && scope !== "shop") {
+        return reply.code(400).send({ error: 'scope must be "all" or "shop"' });
+      }
+      return autocompleteProducts(es, scope === "shop" ? shopIndex : index, query);
     },
   );
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSearchBody } from "../../src/search/query.ts";
+import { buildAutocompleteBody, buildSearchBody } from "../../src/search/query.ts";
 
 describe("buildSearchBody", () => {
   // Expected DSL written from the Elasticsearch multi_match docs.
@@ -38,6 +38,23 @@ describe("buildSearchBody", () => {
         },
       },
       size: 20,
+    });
+  });
+});
+
+describe("buildAutocompleteBody", () => {
+  // Expected DSL from the ES search_as_you_type docs: bool_prefix over
+  // the sayt field and its generated 2/3-gram companions.
+  it("builds a bool_prefix multi_match over the sayt subfields", () => {
+    expect(buildAutocompleteBody("fabric so", 8)).toEqual({
+      query: {
+        multi_match: {
+          query: "fabric so",
+          type: "bool_prefix",
+          fields: ["name.sayt", "name.sayt._2gram", "name.sayt._3gram"],
+        },
+      },
+      size: 8,
     });
   });
 });
