@@ -3,14 +3,19 @@ import { buildSearchBody } from "../../src/search/query.ts";
 
 describe("buildSearchBody", () => {
   // Expected DSL written from the Elasticsearch multi_match docs.
-  // Step-1 baseline: best_fields + OR + standard analyzer, no boosts —
-  // the relevance lab exists to measure exactly how naive this is.
-  it("builds a naive multi_match over the three text fields", () => {
+  // Step-3 upgrade over the step-1 baseline: explicit best_fields with
+  // field boosts — a name hit is worth more than a description hit.
+  // best_fields (not cross_fields): product names are short, self-contained
+  // phrases, so the best single field should win; cross_fields treats fields
+  // as one big field and also cannot combine with fuzziness.
+  it("builds a boosted best_fields multi_match over the three text fields", () => {
     expect(buildSearchBody("outdoor chair", 20)).toEqual({
       query: {
         multi_match: {
           query: "outdoor chair",
-          fields: ["name", "product_class", "description"],
+          type: "best_fields",
+          fields: ["name^3", "product_class^2", "description"],
+          fuzziness: "AUTO",
         },
       },
       size: 20,

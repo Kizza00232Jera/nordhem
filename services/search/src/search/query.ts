@@ -1,9 +1,11 @@
 import type { estypes } from "@elastic/elasticsearch";
 
 /**
- * The step-1 baseline query: naive multi_match (best_fields, OR operator,
- * standard analyzer, no boosts, no fuzziness, no synonyms). Deliberately
- * primitive — the relevance lab measures it before step 3 improves it.
+ * The step-3 query: best_fields multi_match with field boosts — a match in
+ * the product name outweighs one in the class, which outweighs one in the
+ * description. best_fields over cross_fields because product names are
+ * short self-contained phrases (the best single field should win) and
+ * because cross_fields cannot combine with fuzziness.
  */
 export function buildSearchBody(
   query: string,
@@ -13,7 +15,11 @@ export function buildSearchBody(
     query: {
       multi_match: {
         query,
-        fields: ["name", "product_class", "description"],
+        type: "best_fields",
+        fields: ["name^3", "product_class^2", "description"],
+        // AUTO scales allowed edits with term length: 0 edits up to 2
+        // chars, 1 edit for 3-5, 2 edits above 5.
+        fuzziness: "AUTO",
       },
     },
     size,

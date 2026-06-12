@@ -71,4 +71,15 @@ describe("query understanding: analysis chain", () => {
     const body = SearchResponseSchema.parse(res.json());
     expect(body.hits.map((h) => h.name)).toContain("solid wood platform bed");
   });
+
+  // A single misspelled token is the honest fuzziness test — in a
+  // multi-word typo query ("querry chair") the well-spelled word matches
+  // on its own and proves nothing. "vellvet" is 7 chars / 1 insertion away
+  // from "velvet"; AUTO grants 2 edits to terms longer than 5 chars.
+  it('tolerates a typo: "vellvet" finds the velvet accent chair', async () => {
+    const res = await app.inject({ url: "/search?q=vellvet" });
+
+    const body = SearchResponseSchema.parse(res.json());
+    expect(body.hits.map((h) => h.name)).toContain("velvet accent chair");
+  });
 });
