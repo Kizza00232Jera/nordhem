@@ -18,9 +18,10 @@ const fullModePayload = {
       score: 7.31,
     },
     {
+      // WANDS has products with no class — the contract must allow it.
       id: "wands-2231",
       name: "lounge patio chair set of 2",
-      productClass: "patio chairs",
+      productClass: null,
       description: null,
       score: 5.02,
     },
@@ -43,6 +44,7 @@ describe("SearchResponse contract", () => {
       score: 7.31,
     });
     expect(parsed.hits[1]?.description).toBeNull();
+    expect(parsed.hits[1]?.productClass).toBeNull();
   });
 
   it("rejects a payload whose hits are missing required fields", () => {

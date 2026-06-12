@@ -11,7 +11,7 @@ import { z } from "zod";
 export const SearchHitSchema = z.object({
   id: z.string(),
   name: z.string(),
-  productClass: z.string(),
+  productClass: z.string().nullable(),
   description: z.string().nullable(),
   score: z.number(),
 });
