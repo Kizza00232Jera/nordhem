@@ -1,6 +1,8 @@
-import { SearchResponseSchema, type SearchResponse } from "@nordhem/shared";
+import { SearchResponseSchema, type SearchHit, type SearchResponse } from "@nordhem/shared";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
+import { formatPrice } from "../../lib/format";
 
 const SEARCH_API_URL = process.env.SEARCH_API_URL ?? "http://localhost:3001";
 
@@ -8,10 +10,43 @@ export const metadata: Metadata = { title: "Search" };
 
 async function search(query: string): Promise<SearchResponse> {
   const res = await fetch(
-    `${SEARCH_API_URL}/search?q=${encodeURIComponent(query)}`,
+    `${SEARCH_API_URL}/search?q=${encodeURIComponent(query)}&scope=shop`,
   );
   if (!res.ok) throw new Error(`Search service responded ${res.status}`);
   return SearchResponseSchema.parse(await res.json());
+}
+
+function HitCard({ hit }: { hit: SearchHit }) {
+  return (
+    <Link
+      href={`/product/${hit.slug}`}
+      className="group block overflow-hidden rounded-md bg-card shadow-lift transition-shadow duration-200 hover:shadow-float"
+    >
+      <div className="relative aspect-[4/5] overflow-hidden bg-linen">
+        {hit.imageThumbUrl ? (
+          <Image
+            src={hit.imageThumbUrl}
+            alt={hit.name}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-[13px] text-ink-muted">
+            photo pending
+          </div>
+        )}
+      </div>
+      <div className="px-4 pb-4 pt-3">
+        <h2 className="line-clamp-2 min-h-[2.6em] text-[15px] leading-snug">{hit.name}</h2>
+        {hit.priceCents !== undefined && (
+          <p className="tnum mt-1.5 text-[15px] font-semibold">
+            {formatPrice(hit.priceCents)}
+          </p>
+        )}
+      </div>
+    </Link>
+  );
 }
 
 export default async function SearchPage({
@@ -35,8 +70,10 @@ export default async function SearchPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 md:py-14">
-      <h1 className="font-display text-4xl font-light">Search</h1>
+    <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 md:py-14">
+      <h1 className="font-display text-4xl font-light">
+        {query ? <>Results for “{query}”</> : "Search"}
+      </h1>
 
       {!query && (
         <p className="mt-4 text-[15px] text-ink-muted">
@@ -46,7 +83,7 @@ export default async function SearchPage({
       )}
 
       {unavailable && (
-        <div className="mt-8 rounded-md bg-linen px-5 py-4 text-[15px]">
+        <div className="mt-8 max-w-2xl rounded-md bg-linen px-5 py-4 text-[15px]">
           Search is offline right now (the engine runs on a real machine that
           is sometimes asleep). Browse the{" "}
           <Link href="/" className="text-pine underline">
@@ -57,38 +94,25 @@ export default async function SearchPage({
       )}
 
       {results && (
-        <section className="mt-8" aria-live="polite">
+        <section className="mt-6" aria-live="polite">
           <p className="text-[13px] text-ink-muted">
-            {results.total.toLocaleString("en-US")} results for “{results.query}”
-            · {results.tookMs} ms · {results.mode} mode
+            {results.total.toLocaleString("en-US")} products · {results.tookMs}{" "}
+            ms · {results.mode} mode
           </p>
-          <ol className="mt-5 space-y-4">
+          <ul className="mt-6 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
             {results.hits.map((hit) => (
-              <li
-                key={hit.id}
-                className="rounded-md bg-card p-5 shadow-lift"
-              >
-                <h2 className="text-[16px] font-semibold leading-snug">
-                  {hit.name}
-                </h2>
-                {hit.productClass && (
-                  <p className="mt-0.5 text-[12px] uppercase tracking-wide text-ink-muted">
-                    {hit.productClass}
-                  </p>
-                )}
-                {hit.description && (
-                  <p className="mt-2 line-clamp-2 text-[14px] leading-relaxed text-ink-muted">
-                    {hit.description}
-                  </p>
-                )}
+              <li key={hit.id}>
+                <HitCard hit={hit} />
               </li>
             ))}
-          </ol>
+          </ul>
           {results.total === 0 && (
-            <p className="mt-6 text-[15px] text-ink-muted">
-              Nothing found for “{results.query}”. Try fewer words, or browse
-              the categories above.
-            </p>
+            <div className="mt-8 max-w-2xl">
+              <p className="text-[15px] text-ink-muted">
+                Nothing found for “{results.query}”. Try fewer or different
+                words — typo tolerance and synonyms are coming in build step 3.
+              </p>
+            </div>
           )}
         </section>
       )}

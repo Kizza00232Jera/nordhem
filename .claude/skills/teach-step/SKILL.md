@@ -5,7 +5,17 @@ description: Generate the per-step teaching HTML (concepts, annotated real code,
 
 # teach-step — the NORDHEM course generator
 
-Antonio learns every step of this project deeply enough to defend it in the JYSK Software Engineer (Search) interview. Each build step produces ONE self-contained HTML teaching file. You are writing study material for a motivated engineer, not documentation.
+Antonio learns every step of this project deeply enough to defend it in the JYSK Software Engineer (Search) interview. Each build step produces ONE self-contained HTML teaching file. You are writing study material for a motivated learner, not documentation.
+
+## Audience & voice (applies to every section, non-negotiable)
+
+Antonio is a graduate student: smart and motivated, but NEW to most of this. Assume NO prior knowledge of TypeScript syntax, Elasticsearch jargon, backend architecture, or testing terminology. His explicit feedback (2026-06-12): earlier material explained code "in a way that somebody who doesn't understand what's written there" can't follow.
+
+- **Everyday words first, the technical term second.** Introduce every term of art with a plain-words gloss at first use: "an endpoint (a URL the service answers on)", "idempotent (running it twice gives the same result)". After that, the term may be used bare within the same page.
+- **Never explain code by restating it in denser jargon.** "A pure function from parameters to query DSL" is a failed explanation for this audience. Say what it does in everyday words, then name it.
+- **Friendly and encouraging, never condescending.** Short sentences. It should read like a patient tutor sitting next to him, not a reference manual.
+- **One concrete everyday analogy per concept** (back-of-book index, bouncer at the door), then drop it.
+- Depth stays: the goal is still interview-grade understanding. Beginner-friendly means the ramp is gentle, not that the summit is lower.
 
 ## Inputs
 
@@ -24,7 +34,7 @@ Antonio learns every step of this project deeply enough to defend it in the JYSK
 
 1. **What we built** — plain-language recap (150-300 words) + one inline-SVG architecture sketch showing what this step added (highlight the new parts).
 2. **The concepts** — the search/React theory behind the step. Plain words first, then precision. Every mathematical idea gets a worked numeric example using OUR data (real product names, plausible numbers): BM25 scores computed by hand, nDCG for an example ranking, RRF fusion arithmetic. Analogies allowed, one per concept, then dropped.
-3. **The real code, annotated** — 3-6 trimmed excerpts from actual repo files (cite path), each followed by *why it's written this way* and *what breaks if you do the naive thing instead*.
+3. **The real code, annotated** — 3-6 trimmed excerpts from actual repo files (cite path). The section OPENS with a "decoder" box explaining, once, the language constructs that recur in the snippets (`const`, `async`/`await`, arrow functions, type annotations, `export`, template strings — whatever this step's excerpts actually use). Then EVERY excerpt is followed by TWO blocks, in this order: (a) **"What this code does, line by line"** — a plain-words walkthrough where every keyword and call is explained as if the reader has never seen it ("`.map` means apply this function to every item in the list"); (b) **Why** — *why it's written this way* and *what breaks if you do the naive thing instead*, also in plain words. The line-by-line block is mandatory; an excerpt whose walkthrough would be too long is an excerpt that should be trimmed shorter.
 4. **Code dojo** — see spec below. Active coding, not just reading.
 5. **Quiz** — see spec below.
 6. **What the interviewer will ask** — 5-10 likely questions for this step's topics. Each: a model answer in Antonio's first-person voice (2-5 sentences, confident, concrete numbers/names from the project), then a follow-up chain 2 levels deep ("...and if the index has two shards?"). Mark questions where the best move is *demoing* something in the project ("open the studio and show the _explain tree"). Sync the best ones into `docs/interview-bank.md`.
@@ -51,7 +61,7 @@ The one sanctioned exception to "zero external requests": an OPTIONAL, user-init
 - First message in the thread is a note: runs through Claude Code on this PC on the subscription, no API key, no per-token charges, start with `pnpm tutor`, rest of the lesson works offline.
 - `fetch` to `POST http://127.0.0.1:8765/tutor` with JSON body `{ model, system, messages }`; response is `{ text }` or `{ error }`. On network failure, show the run-`pnpm tutor` hint and re-check `/health`.
 - Multi-turn: keep a `[{role, content}]` array for the page visit and send the whole thread each time (the server is stateless); on error, pop the failed user turn so the thread stays valid.
-- System prompt per step (sent as `system` in the request body): tutor persona, the step's concept list (so it can answer without the lesson text), Antonio + interview context, teaching rules (plain text, no markdown, no em-dashes, under ~200 words, hint-before-solution for code, only full solutions on explicit request, connect answers to the real project and the interview).
+- System prompt per step (sent as `system` in the request body): tutor persona pitched at a **friendly beginner level** — Antonio is a graduate student, assume no TypeScript/Elasticsearch/backend prior knowledge, gloss every term of art in plain words, explain code line by line in everyday language, warm and encouraging, teach missing prerequisite concepts before the answer; plus the step's concept list (so it can answer without the lesson text), Antonio + interview context, and the format rules (plain text, no markdown, no em-dashes, under ~200 words, hint-before-solution for code, only full solutions on explicit request, connect answers to the real project and the interview, explained just as simply). Copy the persona/teaching-rules paragraphs from step-01's `TUTOR_SYSTEM` and only swap the concept list.
 - Render the thread as plain-text chat bubbles (`white-space: pre-wrap`) — instruct the model to answer in plain text, don't ship a markdown renderer.
 - Quiz learning records still flow through the **Copy results for Claude** button — a browser page cannot write `teaching/learning-records/`, so the paste-back loop stays.
 - `tools/tutor-server.mjs` is shared by all steps — do not generate a new server per step; only the per-step system prompt in the HTML changes.

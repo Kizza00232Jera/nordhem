@@ -32,23 +32,38 @@ export function toDocument(p: RawProduct): ProductDocument {
 }
 
 /**
+ * The shop-index document: the searchable text fields plus everything a
+ * storefront product card renders (D7's curated index).
+ */
+export interface ShopDocument {
+  product_id: number;
+  name: string;
+  product_class: string | null;
+  description: string | null;
+  slug: string;
+  category: string;
+  price_cents: number;
+  image_thumb_url: string | null;
+}
+
+/**
  * Drop-and-rebuild indexing, step-1 naive on purpose: no explicit mapping,
  * so Elasticsearch dynamic-maps strings to text + .keyword subfields with
  * the standard analyzer. Step 3 replaces this with a real mapping and
  * measures the difference in the relevance lab.
  */
-export async function indexProducts(
+async function recreateAndBulk<T extends { product_id: number }>(
   es: Client,
   index: string,
-  products: RawProduct[],
+  docs: T[],
 ): Promise<number> {
   if (await es.indices.exists({ index })) {
     await es.indices.delete({ index });
   }
   await es.indices.create({ index });
 
-  const result = await es.helpers.bulk<ProductDocument>({
-    datasource: products.map(toDocument),
+  const result = await es.helpers.bulk<T>({
+    datasource: docs,
     onDocument: (doc) => ({
       index: { _index: index, _id: String(doc.product_id) },
     }),
@@ -59,4 +74,20 @@ export async function indexProducts(
 
   await es.indices.refresh({ index });
   return result.successful;
+}
+
+export async function indexProducts(
+  es: Client,
+  index: string,
+  products: RawProduct[],
+): Promise<number> {
+  return recreateAndBulk(es, index, products.map(toDocument));
+}
+
+export async function indexShopDocuments(
+  es: Client,
+  index: string,
+  docs: ShopDocument[],
+): Promise<number> {
+  return recreateAndBulk(es, index, docs);
 }

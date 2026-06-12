@@ -61,4 +61,31 @@ describe("SearchResponse contract", () => {
       SearchResponseSchema.parse({ ...fullModePayload, mode: "turbo" }),
     ).toThrowError();
   });
+
+  it("roundtrips shop-index hits carrying storefront card fields", () => {
+    // Shop-scope hits add what a product card needs; the fields are
+    // optional because benchmark-index hits don't have them.
+    const payload = {
+      ...fullModePayload,
+      total: 1,
+      hits: [
+        {
+          id: "40511",
+          name: "imani velvet sleeper",
+          productClass: "Sofas",
+          description: null,
+          score: 9.1,
+          slug: "imani-velvet-sleeper-40511",
+          category: "sofas",
+          priceCents: 105999,
+          imageThumbUrl: "https://images.unsplash.com/photo-x?w=400",
+        },
+      ],
+    };
+
+    const parsed = SearchResponseSchema.parse(payload);
+    expect(parsed.hits[0]?.slug).toBe("imani-velvet-sleeper-40511");
+    expect(parsed.hits[0]?.priceCents).toBe(105999);
+    expect(parsed.hits[0]?.imageThumbUrl).toContain("unsplash");
+  });
 });

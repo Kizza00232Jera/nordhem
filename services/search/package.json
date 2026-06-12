@@ -9,7 +9,8 @@
     "test": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "load-wands": "tsx src/wands/load-cli.ts",
-    "index-products": "tsx src/es/index-cli.ts"
+    "index-products": "tsx src/es/index-cli.ts",
+    "index-shop": "tsx src/es/index-shop-cli.ts"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.4.2",
