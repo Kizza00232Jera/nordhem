@@ -1,6 +1,6 @@
 ---
 name: teach-step
-description: Generate the per-step teaching HTML (concepts, annotated real code, interactive quiz, interviewer Q&A) after a build step finishes. Run as part of the wrap-step ritual or when Antonio asks to "teach step N".
+description: Generate the per-step teaching HTML (concepts, annotated real code, code-dojo exercises with in-page tests, interactive quiz, embedded Claude tutor, interviewer Q&A) after a build step finishes. Run as part of the wrap-step ritual or when Antonio asks to "teach step N".
 ---
 
 # teach-step — the NORDHEM course generator
@@ -25,9 +25,35 @@ Antonio learns every step of this project deeply enough to defend it in the JYSK
 1. **What we built** — plain-language recap (150-300 words) + one inline-SVG architecture sketch showing what this step added (highlight the new parts).
 2. **The concepts** — the search/React theory behind the step. Plain words first, then precision. Every mathematical idea gets a worked numeric example using OUR data (real product names, plausible numbers): BM25 scores computed by hand, nDCG for an example ranking, RRF fusion arithmetic. Analogies allowed, one per concept, then dropped.
 3. **The real code, annotated** — 3-6 trimmed excerpts from actual repo files (cite path), each followed by *why it's written this way* and *what breaks if you do the naive thing instead*.
-4. **Quiz** — see spec below.
-5. **What the interviewer will ask** — 5-10 likely questions for this step's topics. Each: a model answer in Antonio's first-person voice (2-5 sentences, confident, concrete numbers/names from the project), then a follow-up chain 2 levels deep ("...and if the index has two shards?"). Mark questions where the best move is *demoing* something in the project ("open the studio and show the _explain tree"). Sync the best ones into `docs/interview-bank.md`.
-6. **Go deeper** — 1-3 primary sources max (official docs, the original paper, one excellent talk). Highest-trust only. Plus a closing reminder: "Ask Claude follow-up questions about anything unclear — that's what the teacher is for."
+4. **Code dojo** — see spec below. Active coding, not just reading.
+5. **Quiz** — see spec below.
+6. **What the interviewer will ask** — 5-10 likely questions for this step's topics. Each: a model answer in Antonio's first-person voice (2-5 sentences, confident, concrete numbers/names from the project), then a follow-up chain 2 levels deep ("...and if the index has two shards?"). Mark questions where the best move is *demoing* something in the project ("open the studio and show the _explain tree"). Sync the best ones into `docs/interview-bank.md`.
+7. **Go deeper** — 1-3 primary sources max (official docs, the original paper, one excellent talk). Highest-trust only. Plus a closing reminder that the embedded tutor (and Claude in a session) answers follow-up questions.
+
+Plus the **Claude tutor panel** (spec below) — present on every lesson page, floating bottom-right.
+
+## Code dojo spec
+
+- 2-4 exercises per step, ordered easiest → hardest, each tagged `basics` / `solid` / `interview-killer` like quiz questions.
+- Mix two forms: **write-from-scratch** (empty function body + brief) and **fix-the-broken-code** (a plausible buggy version of something the step actually built — bugs a code review would catch, not typos).
+- Each exercise: a dark monospace `<textarea>` editor (Tab inserts two spaces, vertical resize), **Run tests**, **Hint**, **Reset**, and **Ask the tutor about my code** buttons.
+- Tests run in-page with `new Function` — vitest-style output (✓/✗ per test, expected vs received on failure, `N / M passed` summary). Exercises must be JS-expressible (tokenizers, query-DSL builders, metric math, fusion arithmetic, reducers); the lesson's TS code is adapted to plain JS for the editor.
+- One pre-authored hint per exercise (the conceptual nudge, not the answer), revealed on click.
+- **Verify before shipping**: extract the exercise data + runner with Node and prove (a) a reference solution passes every test and (b) the starter code fails — an exercise whose starter already passes teaches nothing.
+- "Ask the tutor about my code" opens the tutor panel with the exercise context attached to the next message: exercise title + brief, the student's current editor code, and the last test output.
+
+## Claude tutor panel spec
+
+The one sanctioned exception to "zero external requests": an OPTIONAL, user-initiated call to the Anthropic API. The page must remain fully functional offline — the tutor simply reports a network error when unreachable.
+
+- Floating toggle button bottom-right ("Tutor · ask Claude") opening a fixed chat panel.
+- Setup row: password input for the API key (persisted to `localStorage` key `nordhem-tutor-key`, never embedded in the file) + model dropdown (`claude-opus-4-8` default, `claude-sonnet-4-6`, `claude-haiku-4-5`), persisted to `nordhem-tutor-model`.
+- First message in the thread is a note: key stays in the browser, calls go directly to api.anthropic.com, rough cost per question, offline behavior.
+- Raw `fetch` to `POST https://api.anthropic.com/v1/messages` with headers `x-api-key`, `anthropic-version: 2023-06-01`, `content-type: application/json`, and `anthropic-dangerous-direct-browser-access: true` (required for CORS from a page). `max_tokens: 1024`, non-streaming. No sampling params (removed on current Opus models).
+- Multi-turn: keep a `[{role, content}]` array for the page visit and send the whole thread each time; on API/network error, pop the failed user turn so the thread stays valid.
+- System prompt per step: tutor persona, the step's concept list (so it can answer without the lesson text), Antonio + interview context, teaching rules (plain text, no markdown, no em-dashes, under ~200 words, hint-before-solution for code, only full solutions on explicit request, connect answers to the real project and the interview).
+- Render the thread as plain-text chat bubbles (`white-space: pre-wrap`) — instruct the model to answer in plain text, don't ship a markdown renderer.
+- Quiz learning records still flow through the **Copy results for Claude** button — a browser page cannot write `teaching/learning-records/`, so the paste-back loop stays.
 
 ## Quiz spec
 
@@ -39,7 +65,7 @@ Antonio learns every step of this project deeply enough to defend it in the JYSK
 
 ## Style contract
 
-- **One file, fully self-contained**: inline CSS, inline vanilla JS, inline SVG. ZERO external requests (no CDNs, no fonts, no images) — files must open offline forever.
+- **One file, fully self-contained**: inline CSS, inline vanilla JS, inline SVG. ZERO external requests for assets (no CDNs, no fonts, no images) — files must open offline forever. The only network call allowed is the tutor panel's user-initiated Anthropic API call, and the page must degrade gracefully without it.
 - NORDHEM-adjacent design tokens, defined inline: warm paper background `#FAF7F2`, ink `#20262E`, accent `#2F6F62`, amber highlight `#C8842C`, generous whitespace, max-width ~72ch for prose, system font stack with `Georgia`-ish serif for body or clean sans — readable like Tufte, not like a dashboard.
 - Code blocks: dark panel, simple inline token highlighting (keywords/strings/comments via spans you emit yourself — no highlight.js).
 - Print-friendly (`@media print`: hide quiz interactivity, show answers appendix).
