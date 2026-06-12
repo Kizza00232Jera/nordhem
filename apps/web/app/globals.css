@@ -1,26 +1,55 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* NORDHEM design tokens — single source of truth (nordhem-design skill). */
+@theme {
+  --color-paper: #faf7f2;
+  --color-linen: #f1ebe1;
+  --color-card: #ffffff;
+  --color-ink: #20262e;
+  --color-ink-muted: #5b6470;
+  --color-line: #e7e0d6;
+  --color-pine: #2f6f62;
+  --color-pine-deep: #24544b;
+  --color-amber: #c8842c;
+  --color-error: #b4452f;
+
+  --radius-xs: 6px;
+  --radius-md: 12px;
+  --radius-xl: 20px;
+
+  --shadow-lift: 0 1px 2px rgba(32, 38, 46, 0.06), 0 4px 16px rgba(32, 38, 46, 0.05);
+  --shadow-float: 0 8px 40px rgba(32, 38, 46, 0.16);
+
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-schibsted);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* Focus: 2px pine ring with offset, everywhere, never removed. */
+:focus-visible {
+  outline: 2px solid var(--color-pine);
+  outline-offset: 2px;
+}
+
+/* Prices and metric numbers align. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export * from "./categories.ts";
+
 /**
  * The search API contract between services/search (producer), the Next.js
  * backend (consumer + fallback producer in lite mode), and the storefront UI.
