@@ -3,12 +3,36 @@ import { SearchResponseSchema } from "@nordhem/shared";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createEsClient } from "../../src/es/client.ts";
-import { indexProducts } from "../../src/es/indexer.ts";
+import { indexProducts, indexShopDocuments, type ShopDocument } from "../../src/es/indexer.ts";
 import { buildApp } from "../../src/server.ts";
 import type { RawProduct } from "../../src/wands/parse.ts";
 
 const ES_IMAGE = "docker.elastic.co/elasticsearch/elasticsearch:9.3.1";
 const INDEX = "products-test";
+const SHOP_INDEX = "products-shop-test";
+
+const SHOP_FIXTURES: ShopDocument[] = [
+  {
+    product_id: 1,
+    name: "velvet accent chair",
+    product_class: "Accent Chairs",
+    description: "plush emerald velvet chair",
+    slug: "velvet-accent-chair-1",
+    category: "sofas",
+    price_cents: 49999,
+    image_thumb_url: "https://images.unsplash.com/photo-velvet?w=400",
+  },
+  {
+    product_id: 3,
+    name: "solid wood platform bed",
+    product_class: "Beds",
+    description: "acacia wood bed frame",
+    slug: "solid-wood-platform-bed-3",
+    category: "beds",
+    price_cents: 62999,
+    image_thumb_url: null,
+  },
+];
 
 function makeProduct(overrides: Partial<RawProduct> & Pick<RawProduct, "productId" | "name">): RawProduct {
   return {
@@ -63,7 +87,8 @@ beforeAll(async () => {
     .start();
   const es = createEsClient(container.getHttpUrl());
   await indexProducts(es, INDEX, FIXTURES);
-  app = buildApp({ es, index: INDEX });
+  await indexShopDocuments(es, SHOP_INDEX, SHOP_FIXTURES);
+  app = buildApp({ es, index: INDEX, shopIndex: SHOP_INDEX });
 });
 
 afterAll(async () => {
@@ -110,5 +135,32 @@ describe("GET /search", () => {
     expect((await app.inject({ url: "/search" })).statusCode).toBe(400);
     expect((await app.inject({ url: "/search?q=" })).statusCode).toBe(400);
     expect((await app.inject({ url: "/search?q=%20%20" })).statusCode).toBe(400);
+  });
+
+  it("scope=shop searches the shop index and returns card fields", async () => {
+    const res = await app.inject({ url: "/search?q=chair&scope=shop" });
+
+    expect(res.statusCode).toBe(200);
+    const body = SearchResponseSchema.parse(res.json());
+    expect(body.total).toBe(1);
+    expect(body.hits[0]).toMatchObject({
+      name: "velvet accent chair",
+      slug: "velvet-accent-chair-1",
+      category: "sofas",
+      priceCents: 49999,
+      imageThumbUrl: "https://images.unsplash.com/photo-velvet?w=400",
+    });
+  });
+
+  it("default scope searches the full index and omits card fields", async () => {
+    const res = await app.inject({ url: "/search?q=chair" });
+
+    const body = SearchResponseSchema.parse(res.json());
+    expect(body.total).toBe(2);
+    expect(body.hits[0]?.slug).toBeUndefined();
+  });
+
+  it("rejects an unknown scope with 400", async () => {
+    expect((await app.inject({ url: "/search?q=chair&scope=warehouse" })).statusCode).toBe(400);
   });
 });

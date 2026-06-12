@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export * from "./categories.ts";
+
 /**
  * The search API contract between services/search (producer), the Next.js
  * backend (consumer + fallback producer in lite mode), and the storefront UI.
@@ -14,6 +16,12 @@ export const SearchHitSchema = z.object({
   productClass: z.string().nullable(),
   description: z.string().nullable(),
   score: z.number(),
+  // Present on shop-index hits only — everything a product card needs.
+  // Benchmark-index hits (the 43k corpus) never carry these.
+  slug: z.string().optional(),
+  category: z.string().optional(),
+  priceCents: z.number().int().optional(),
+  imageThumbUrl: z.string().nullable().optional(),
 });
 
 export const SearchResponseSchema = z.object({

@@ -1,8 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDb, type Db } from "../../src/db/client.ts";
-import { ensureSchema } from "../../src/db/ensure-schema.ts";
-import { productsRaw } from "../../src/db/schema.ts";
+import { createDb, ensureSchema, productsRaw, type Db } from "@nordhem/db";
 import { loadProducts } from "../../src/wands/load.ts";
 import { parseProductsTsv } from "../../src/wands/parse.ts";
 

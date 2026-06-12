@@ -1,7 +1,6 @@
-import { createDb } from "../db/client.ts";
+import { createDb, productsRaw } from "@nordhem/db";
 import { createEsClient } from "./client.ts";
 import { indexProducts } from "./indexer.ts";
-import { productsRaw } from "../db/schema.ts";
 
 const databaseUrl =
   process.env.DATABASE_URL ?? "postgres://nordhem:nordhem@localhost:5432/nordhem";

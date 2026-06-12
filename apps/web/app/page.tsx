@@ -1,84 +1,112 @@
-import { SearchResponseSchema, type SearchResponse } from "@nordhem/shared";
+import { SHOP_CATEGORIES } from "@nordhem/shared";
+import Image from "next/image";
+import Link from "next/link";
+import { ProductCard } from "./components/product-card";
+import { categoryShowcase, featuredProducts } from "../lib/catalog";
 
-const SEARCH_API_URL = process.env.SEARCH_API_URL ?? "http://localhost:3001";
+// The home page reads live catalog data from Postgres; without this it
+// would prerender at build time (and CI has no database).
+export const dynamic = "force-dynamic";
 
-// The contract is enforced at the trust boundary: whatever the search
-// service returns must parse, or this page fails loudly instead of
-// rendering half-shaped data.
-async function search(query: string): Promise<SearchResponse> {
-  const res = await fetch(
-    `${SEARCH_API_URL}/search?q=${encodeURIComponent(query)}`,
-  );
-  if (!res.ok) {
-    throw new Error(`Search service responded ${res.status}`);
-  }
-  return SearchResponseSchema.parse(await res.json());
-}
-
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
-  const { q } = await searchParams;
-  const query = q?.trim();
-  const results = query ? await search(query) : null;
+export default async function Home() {
+  const [showcase, featured] = await Promise.all([
+    categoryShowcase(),
+    featuredProducts(8),
+  ]);
+  const hero = showcase.get("sofas") ?? featured[0];
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-12">
-      <h1 className="text-2xl font-semibold">NORDHEM</h1>
-      <p className="mt-1 text-sm text-neutral-500">sleep, live, store</p>
-
-      <form action="/" className="mt-8 flex gap-2">
-        <input
-          type="search"
-          name="q"
-          defaultValue={query ?? ""}
-          placeholder="Search 42,994 products…"
-          aria-label="Search products"
-          className="w-full rounded border border-neutral-300 px-3 py-2"
-        />
-        <button
-          type="submit"
-          className="rounded bg-neutral-900 px-4 py-2 text-white"
-        >
-          Search
-        </button>
-      </form>
-
-      {results && (
-        <section className="mt-8" aria-live="polite">
-          <p className="text-sm text-neutral-500">
-            {results.total.toLocaleString("en-US")} results for
-            “{results.query}” · {results.tookMs} ms · {results.mode} mode
-          </p>
-          <ol className="mt-4 space-y-4">
-            {results.hits.map((hit) => (
-              <li key={hit.id} className="rounded border border-neutral-200 p-4">
-                <h2 className="font-medium">{hit.name}</h2>
-                {hit.productClass && (
-                  <p className="text-xs uppercase tracking-wide text-neutral-400">
-                    {hit.productClass}
-                  </p>
-                )}
-                {hit.description && (
-                  <p className="mt-1 line-clamp-2 text-sm text-neutral-600">
-                    {hit.description}
-                  </p>
-                )}
-                <p className="mt-1 text-xs text-neutral-400">
-                  score {hit.score.toFixed(2)}
-                </p>
-              </li>
-            ))}
-          </ol>
-          {results.total === 0 && (
-            <p className="mt-4 text-neutral-600">
-              Nothing found for “{results.query}”.
+    <main>
+      <section className="bg-linen">
+        <div className="mx-auto grid w-full max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 md:py-24">
+          <div>
+            <h1 className="font-display text-[clamp(2.75rem,6vw,5.25rem)] font-light leading-[1.05]">
+              sleep, live,
+              <br />
+              <em className="text-pine">store.</em>
+            </h1>
+            <p className="mt-5 max-w-md text-[17px] leading-relaxed text-ink-muted">
+              Nordic home goods chosen from 42,994 real products — and a search
+              bar that actually understands what you mean.
             </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/category/beds"
+                className="rounded-xs bg-pine px-6 py-3 text-[15px] font-semibold text-white transition-colors duration-150 hover:bg-pine-deep"
+              >
+                Shop beds
+              </Link>
+              <Link
+                href="/search?q=reading+chair"
+                className="rounded-xs border border-line bg-card px-6 py-3 text-[15px] font-semibold transition-colors duration-150 hover:border-ink-muted"
+              >
+                Try the search
+              </Link>
+            </div>
+          </div>
+          {hero?.imageUrl && (
+            <div className="relative aspect-[4/5] max-h-[520px] overflow-hidden rounded-xl shadow-lift">
+              <Image
+                src={hero.imageUrl}
+                alt={hero.name}
+                fill
+                priority
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover"
+              />
+            </div>
           )}
-        </section>
-      )}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 md:py-24">
+        <h2 className="font-display text-3xl font-light">Rooms to live in</h2>
+        <ul className="mt-8 grid grid-cols-2 gap-5 md:grid-cols-4">
+          {SHOP_CATEGORIES.map((category) => {
+            const sample = showcase.get(category.slug);
+            return (
+              <li key={category.slug}>
+                <Link
+                  href={`/category/${category.slug}`}
+                  className="group block overflow-hidden rounded-md bg-card shadow-lift transition-shadow duration-200 hover:shadow-float"
+                >
+                  <div className="relative aspect-square overflow-hidden bg-linen">
+                    {sample?.imageThumbUrl && (
+                      <Image
+                        src={sample.imageThumbUrl}
+                        alt=""
+                        fill
+                        sizes="(max-width: 768px) 50vw, 25vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                      />
+                    )}
+                  </div>
+                  <div className="px-4 py-3">
+                    <h3 className="text-[15px] font-semibold">{category.title}</h3>
+                    <p className="mt-0.5 line-clamp-1 text-[13px] text-ink-muted">
+                      {category.blurb}
+                    </p>
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6 md:pb-24">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-3xl font-light">Loved by many</h2>
+          <p className="text-[13px] text-ink-muted">ranked by real review counts</p>
+        </div>
+        <ul className="mt-8 grid grid-cols-2 gap-5 lg:grid-cols-4">
+          {featured.map((p) => (
+            <li key={p.productId}>
+              <ProductCard product={p} />
+            </li>
+          ))}
+        </ul>
+      </section>
     </main>
   );
 }

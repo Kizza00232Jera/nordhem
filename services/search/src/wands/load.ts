@@ -1,5 +1,4 @@
-import type { Db } from "../db/client.ts";
-import { productsRaw } from "../db/schema.ts";
+import { productsRaw, type Db } from "@nordhem/db";
 import type { RawProduct } from "./parse.ts";
 
 const BATCH_SIZE = 1_000;
