@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { createDb } from "../db/client.ts";
-import { ensureSchema } from "../db/ensure-schema.ts";
+import { createDb, ensureSchema } from "@nordhem/db";
 import { loadProducts } from "./load.ts";
 import { parseProductsTsv } from "./parse.ts";
 

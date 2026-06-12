@@ -3,8 +3,8 @@ import type { Db } from "./client.ts";
 
 /**
  * Idempotent schema bootstrap. Deliberately not drizzle-kit migrations yet:
- * one table, no evolution history to manage. Proper migration files start
- * in step 5 when user/order tables make schema changes routine.
+ * a handful of tables, no evolution history to manage. Proper migration
+ * files start in step 5 when user/order tables make schema changes routine.
  * Must stay in sync with ./schema.ts.
  */
 export async function ensureSchema(db: Db): Promise<void> {
