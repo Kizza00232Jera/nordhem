@@ -1,0 +1,26 @@
+# deps & builds
+node_modules/
+.next/
+dist/
+build/
+.turbo/
+coverage/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# data (WANDS CSVs are downloaded by tools/download-wands)
+data/
+
+# personal study & interview prep — stays local, never on GitHub
+teaching/
+learn/
+docs/interview-bank.md
+docs/blog-moments.md
+
+# misc
+*.log
+.DS_Store
+Thumbs.db
