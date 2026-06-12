@@ -23,9 +23,18 @@ export async function searchProducts(
       ? res.hits.total
       : (res.hits.total?.value ?? 0);
 
+  // The client types options as T | T[]; ES returns an array for phrase
+  // suggesters. The text is present only when the suggester beat the query.
+  const dymEntry = res.suggest?.["did_you_mean"]?.[0];
+  const dymOptions = dymEntry
+    ? [dymEntry.options].flat()
+    : [];
+  const suggestion = dymOptions[0]?.text;
+
   return {
     query,
     mode: "full",
+    ...(suggestion !== undefined && { suggestion }),
     total,
     tookMs: res.took,
     hits: res.hits.hits.map((hit): SearchHit => {

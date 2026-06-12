@@ -100,3 +100,20 @@ describe("query understanding: analysis chain", () => {
     expect(body.hits.map((h) => h.name)).toContain("three-seat fabric sofa");
   });
 });
+
+describe("query understanding: did you mean", () => {
+  it('suggests "platform bed" for the misspelling "platfrom bed"', async () => {
+    const res = await app.inject({ url: "/search?q=platfrom bed" });
+
+    expect(res.statusCode).toBe(200);
+    const body = SearchResponseSchema.parse(res.json());
+    expect(body.suggestion).toBe("platform bed");
+  });
+
+  it("offers no suggestion for a well-spelled query", async () => {
+    const res = await app.inject({ url: "/search?q=velvet accent chair" });
+
+    const body = SearchResponseSchema.parse(res.json());
+    expect(body.suggestion).toBeUndefined();
+  });
+});

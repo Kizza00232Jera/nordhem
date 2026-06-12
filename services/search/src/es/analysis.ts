@@ -23,6 +23,11 @@ export function buildAnalysis(
       english_stop: { type: "stop", stopwords: "_english_" },
       english_stemmer: { type: "stemmer", language: "english" },
       english_synonyms: { type: "synonym_graph", synonyms: synonymRules },
+      trigram_shingles: {
+        type: "shingle",
+        min_shingle_size: 2,
+        max_shingle_size: 3,
+      },
     },
     analyzer: {
       english_text: {
@@ -40,6 +45,13 @@ export function buildAnalysis(
           "english_stemmer",
           "english_synonyms",
         ],
+      },
+      // Did-you-mean field: lowercase + 1-3 word shingles, deliberately
+      // unstemmed — suggestions must be surface words, not stems.
+      trigram: {
+        type: "custom",
+        tokenizer: "standard",
+        filter: ["lowercase", "trigram_shingles"],
       },
     },
   };
@@ -61,6 +73,7 @@ const nameField: estypes.MappingProperty = {
   search_analyzer: "english_search",
   fields: {
     keyword: { type: "keyword", ignore_above: 256 },
+    trigram: { type: "text", analyzer: "trigram" },
   },
 };
 

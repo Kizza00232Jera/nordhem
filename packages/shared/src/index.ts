@@ -30,6 +30,9 @@ export const SearchResponseSchema = z.object({
   total: z.number().int().nonnegative(),
   tookMs: z.number().nonnegative(),
   hits: z.array(SearchHitSchema),
+  // "Did you mean" — present only when the engine has a better-scoring
+  // rewrite of the query (full mode; the lite fallback never suggests).
+  suggestion: z.string().optional(),
 });
 
 export type SearchHit = z.infer<typeof SearchHitSchema>;

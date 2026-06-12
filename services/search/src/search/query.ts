@@ -22,6 +22,21 @@ export function buildSearchBody(
         fuzziness: "AUTO",
       },
     },
+    // Did-you-mean rides along with every search: the phrase suggester
+    // scores candidate rewrites against the shingle field, and the default
+    // confidence (1.0) only returns rewrites that score higher than the
+    // query as typed — well-spelled queries get no suggestion.
+    suggest: {
+      text: query,
+      did_you_mean: {
+        phrase: {
+          field: "name.trigram",
+          size: 1,
+          gram_size: 3,
+          direct_generator: [{ field: "name.trigram", suggest_mode: "always" }],
+        },
+      },
+    },
     size,
   };
 }

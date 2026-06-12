@@ -18,6 +18,17 @@ describe("buildSearchBody", () => {
           fuzziness: "AUTO",
         },
       },
+      suggest: {
+        text: "outdoor chair",
+        did_you_mean: {
+          phrase: {
+            field: "name.trigram",
+            size: 1,
+            gram_size: 3,
+            direct_generator: [{ field: "name.trigram", suggest_mode: "always" }],
+          },
+        },
+      },
       size: 20,
     });
   });
