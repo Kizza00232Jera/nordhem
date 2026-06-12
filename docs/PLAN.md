@@ -1,7 +1,7 @@
 # NORDHEM — Build Plan
 
-> **STATUS (2026-06-12): Step 0 complete. Next: Step 1 — Foundations.**
-> Folder rename `jyski` → `nordhem` pending (Antonio does it manually, then reopens Claude Code there).
+> **STATUS (2026-06-12): Step 1 complete (PR #1, CI green). Next: Step 2 — Storefront + catalog curation + PostHog.**
+> Repo public at github.com/Kizza00232Jera/nordhem. Local stack: `docker compose up -d`, then `pnpm -F @nordhem/search dev` + `pnpm -F @nordhem/web dev`.
 
 Every step ends with the wrap-step ritual: working demo → `teaching/step-XX-*.html` with quiz + interviewer Q&A → blog cards proposed → `docs/interview-bank.md` updated → `docs/blog-moments.md` harvested → this file's status updated → commit. Steps are sized roughly an evening-to-weekend each.
 
@@ -10,9 +10,9 @@ Every step ends with the wrap-step ritual: working demo → `teaching/step-XX-*.
 ### ✅ Step 0 — Workspace setup (done 2026-06-12)
 CLAUDE.md, docs (PLAN, DECISIONS, interview-bank, blog-moments), skills (`teach-step`, `wrap-step`, `nordhem-design`), Matt Pocock's `teach` installed globally, `nordhem` registered in portfolio `scribe/projects.json`, teaching hub shell, git init, memory migrated to the future folder path.
 
-### ⬜ Step 1 — Foundations
-pnpm monorepo (`apps/web`, `services/search`, `packages/shared`, `tools`). Docker Compose: Elasticsearch + Kibana + Postgres. Download WANDS (`tools/download-wands.ts`), load products into Postgres raw tables. First naive index into ES, `GET /search?q=` endpoint in Fastify, bare results page in Next.js.
-*Teaching: what an inverted index is; analyzers 101; why Postgres (source of truth) and Elasticsearch (index) split the work; monorepo anatomy.*
+### ✅ Step 1 — Foundations (done 2026-06-12)
+pnpm monorepo (`apps/web`, `services/search`, `packages/shared`, `tools`). Docker Compose: Elasticsearch 9.3.1 + Kibana + Postgres 17. WANDS downloaded and loaded (42,994 products in `products_raw`), naive dynamic-mapped ES index, `GET /search?q=` in Fastify (shared zod contract, nullable productClass learned from real data), bare Next.js 16 results page, CI (typecheck/lint/unit on PR + Testcontainers integration & build gate). PR #1.
+*Teaching: what an inverted index is; analyzers 101; why Postgres (source of truth) and Elasticsearch (index) split the work; monorepo anatomy.* → `teaching/step-01-foundations.html`
 
 ### ⬜ Step 2 — Storefront + catalog curation + PostHog
 Select ~800 shop products across JYSK-like categories (beds, sofas, wardrobes, mattresses, desks, lighting, rugs, garden). Image pipeline tool (Unsplash/Pexels APIs → URL + photographer credit in Postgres; review grid in studio for manual swaps). NORDHEM design system (Nordic, Tailwind). Home, category listing, product detail pages. PostHog Cloud EU snippet from day one (autocapture + custom events later).

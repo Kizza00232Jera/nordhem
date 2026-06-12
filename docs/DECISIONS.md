@@ -70,5 +70,14 @@ Analyzed even-steven: strong assertion craft, fixture builders, edge-case discip
 **D23 — Teaching artifacts stay off GitHub** (2026-06-12)
 Antonio's call: `teaching/`, `learn/`, `docs/interview-bank.md`, `docs/blog-moments.md` are gitignored. The public repo shows engineering; quizzes, lessons, rehearsed answers, and raw blog notes are personal. Cost: these exist only locally (no remote backup) — back up occasionally.
 
+**D24 — Step 1 search is deliberately naive** (2026-06-12)
+Dynamic mapping (no explicit schema) + default `multi_match` (best_fields, OR, no fuzziness/synonyms/boosts). Why: the relevance lab (step 6) needs an honest baseline; tuning before measuring is guessing, and every later improvement should be a measured delta, not folklore. Rejected: shipping stemming/boosts in step 1 (unfalsifiable improvements).
+
+**D25 — Raw-SQL `ensureSchema` instead of drizzle-kit migrations (for now)** (2026-06-12)
+One table (`products_raw`), no evolution history to manage; a CREATE TABLE IF NOT EXISTS bootstrap is honest about that. Proper migration files start in step 5 when auth/order tables make schema changes routine. Rejected: drizzle-kit migrations now (ceremony without evolution), letting tests create ad-hoc schemas (drift from production path).
+
+**D26 — Contract changes are test-first; `productClass` went nullable** (2026-06-12)
+The first real query returned a top hit with null `product_class`. Procedure now precedent: change the contract TEST (witness red), then the schema (green). The zod parse lives at every consumer boundary because TS types erase at runtime and services deploy independently. Rejected: coercing null to `""` at the producer (lies about data), `as SearchResponse` casts (verify nothing).
+
 **D22 — Git workflow** (2026-06-12)
 Analyzed even-steven (feature branches + merge commits, 60+ stale branches), habitflow (conventional-ish commits, squash), my-recipe-app (trunk, freeform). NORDHEM: public GitHub repo `Kizza00232Jera/nordhem` (created at Step 1 via gh), `main` always green, `step/NN-slug` branches, one squash-merged PR per step with real description (build log doubling as blog ore + visible process for recruiters), conventional commits, branch deletion after merge, GitHub Actions CI (typecheck/lint/unit on PR; integration via Testcontainers + build before merge; Playwright on golden-flow PRs), tags `v0.<step>` → `v1.0` at deploy. History itself is a portfolio artifact.
