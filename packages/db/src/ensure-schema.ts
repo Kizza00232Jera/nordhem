@@ -21,4 +21,35 @@ export async function ensureSchema(db: Db): Promise<void> {
       review_count double precision
     )
   `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS shop_products (
+      product_id integer PRIMARY KEY REFERENCES products_raw(product_id),
+      slug text NOT NULL UNIQUE,
+      category text NOT NULL,
+      price_cents integer NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS product_images (
+      product_id integer PRIMARY KEY REFERENCES shop_products(product_id) ON DELETE CASCADE,
+      url text NOT NULL,
+      thumb_url text NOT NULL,
+      photographer_name text NOT NULL,
+      photographer_url text NOT NULL,
+      source text NOT NULL,
+      search_query text NOT NULL,
+      status text NOT NULL DEFAULT 'auto'
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS photo_pool (
+      id serial PRIMARY KEY,
+      search_query text NOT NULL,
+      url text NOT NULL,
+      thumb_url text NOT NULL,
+      photographer_name text NOT NULL,
+      photographer_url text NOT NULL,
+      source text NOT NULL
+    )
+  `);
 }

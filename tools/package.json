@@ -5,13 +5,19 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc",
-    "test": "vitest run",
-    "download-wands": "tsx src/download-wands.ts"
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "download-wands": "tsx src/download-wands.ts",
+    "curate-shop": "tsx src/curate/curate-cli.ts"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^12.0.1",
     "@types/node": "^25.9.3",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
+  },
+  "dependencies": {
+    "@nordhem/db": "workspace:*"
   }
 }
