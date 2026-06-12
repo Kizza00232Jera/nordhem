@@ -1,7 +1,7 @@
 # NORDHEM — Build Plan
 
-> **STATUS (2026-06-12): Step 1 complete (PR #1, CI green). Next: Step 2 — Storefront + catalog curation + PostHog.**
-> Repo public at github.com/Kizza00232Jera/nordhem. Local stack: `docker compose up -d`, then `pnpm -F @nordhem/search dev` + `pnpm -F @nordhem/web dev`.
+> **STATUS (2026-06-12): Step 2 complete (PR #2, CI green). Next: Step 3 — Query understanding.**
+> Repo public at github.com/Kizza00232Jera/nordhem. Local stack: `docker compose up -d`, then `pnpm -F @nordhem/search dev` + `pnpm -F @nordhem/web dev`. Tutor for lessons: `pnpm tutor`.
 
 Every step ends with the wrap-step ritual: working demo → `teaching/step-XX-*.html` with quiz + interviewer Q&A → blog cards proposed → `docs/interview-bank.md` updated → `docs/blog-moments.md` harvested → this file's status updated → commit. Steps are sized roughly an evening-to-weekend each.
 
@@ -14,9 +14,9 @@ CLAUDE.md, docs (PLAN, DECISIONS, interview-bank, blog-moments), skills (`teach-
 pnpm monorepo (`apps/web`, `services/search`, `packages/shared`, `tools`). Docker Compose: Elasticsearch 9.3.1 + Kibana + Postgres 17. WANDS downloaded and loaded (42,994 products in `products_raw`), naive dynamic-mapped ES index, `GET /search?q=` in Fastify (shared zod contract, nullable productClass learned from real data), bare Next.js 16 results page, CI (typecheck/lint/unit on PR + Testcontainers integration & build gate). PR #1.
 *Teaching: what an inverted index is; analyzers 101; why Postgres (source of truth) and Elasticsearch (index) split the work; monorepo anatomy.* → `teaching/step-01-foundations.html`
 
-### ⬜ Step 2 — Storefront + catalog curation + PostHog
-Select ~800 shop products across JYSK-like categories (beds, sofas, wardrobes, mattresses, desks, lighting, rugs, garden). Image pipeline tool (Unsplash/Pexels APIs → URL + photographer credit in Postgres; review grid in studio for manual swaps). NORDHEM design system (Nordic, Tailwind). Home, category listing, product detail pages. PostHog Cloud EU snippet from day one (autocapture + custom events later).
-*Teaching: data pipeline design; App Router patterns (server components, streaming, caching); image CDNs/hotlinking.*
+### ✅ Step 2 — Storefront + catalog curation + PostHog (done 2026-06-12)
+800 products curated across 8 categories (deterministic selection + Knuth-hash synthetic prices). Unsplash pipeline: 45 requests for 800 photos via per-class pooling, credit stored, studio swaps survive re-runs. NORDHEM design system live (Fraunces + Schibsted, paper/pine/amber); home, PLP, PDP, card-grid search. `products-shop` ES index + `scope=shop|all`. Studio v0 image review with swap. PostHog EU with `project: nordhem` super property. `@nordhem/db` extracted (lite-mode browsing). Local tutor server (`pnpm tutor`, D28). PR #2.
+*Teaching: data pipeline design; App Router patterns (server components, streaming, caching); image CDNs/hotlinking.* → `teaching/step-02-storefront.html`
 
 ### ⬜ Step 3 — Query understanding
 Proper mapping & analyzers (English stemming, shingles, keyword subfields). `multi_match` (best_fields vs cross_fields), fuzziness (typo tolerance), synonyms v1 (file-based), did-you-mean suggester, autocomplete (`search_as_you_type`) with accessible debounced React combobox, highlighting, URL-synced search state.
