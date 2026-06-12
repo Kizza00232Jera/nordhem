@@ -1,0 +1,7 @@
+# Normalize line endings: LF in the repo, LF in working copies on every OS.
+# Kills the CRLF warnings on Windows and keeps CI diffs deterministic.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary

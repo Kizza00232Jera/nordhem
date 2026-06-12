@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - services/*
+  - packages/*
+  - tools
+
+# pnpm blocks postinstall scripts by default; these are explicitly trusted.
+onlyBuiltDependencies:
+  - esbuild
