@@ -1,0 +1,32 @@
+{
+  "name": "@nordhem/search",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "load-wands": "tsx src/wands/load-cli.ts",
+    "index-products": "tsx src/es/index-cli.ts"
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^9.4.2",
+    "@nordhem/shared": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.8.5",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@testcontainers/elasticsearch": "^12.0.1",
+    "@testcontainers/postgresql": "^12.0.1",
+    "@types/node": "^25.9.3",
+    "drizzle-kit": "^0.31.10",
+    "testcontainers": "^12.0.1",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}
