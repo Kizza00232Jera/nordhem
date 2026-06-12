@@ -117,3 +117,16 @@ describe("query understanding: did you mean", () => {
     expect(body.suggestion).toBeUndefined();
   });
 });
+
+describe("query understanding: highlighting", () => {
+  it("marks the matched terms in name and description", async () => {
+    const res = await app.inject({ url: "/search?q=velvet" });
+
+    const body = SearchResponseSchema.parse(res.json());
+    const hit = body.hits.find((h) => h.name === "velvet accent chair");
+    expect(hit?.highlightName).toBe("<mark>velvet</mark> accent chair");
+    expect(hit?.highlightDescription).toBe(
+      "plush emerald <mark>velvet</mark> chair for the living room",
+    );
+  });
+});

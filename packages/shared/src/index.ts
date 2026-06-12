@@ -16,6 +16,11 @@ export const SearchHitSchema = z.object({
   productClass: z.string().nullable(),
   description: z.string().nullable(),
   score: z.number(),
+  // Highlighted variants with <mark> tags around matched terms. The raw
+  // text is NOT html-escaped by the engine — render by splitting on the
+  // tags, never via innerHTML.
+  highlightName: z.string().optional(),
+  highlightDescription: z.string().optional(),
   // Present on shop-index hits only — everything a product card needs.
   // Benchmark-index hits (the 43k corpus) never carry these.
   slug: z.string().optional(),

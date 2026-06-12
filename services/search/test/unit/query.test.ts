@@ -18,6 +18,14 @@ describe("buildSearchBody", () => {
           fuzziness: "AUTO",
         },
       },
+      highlight: {
+        pre_tags: ["<mark>"],
+        post_tags: ["</mark>"],
+        fields: {
+          name: { number_of_fragments: 0 },
+          description: { number_of_fragments: 1, fragment_size: 150 },
+        },
+      },
       suggest: {
         text: "outdoor chair",
         did_you_mean: {

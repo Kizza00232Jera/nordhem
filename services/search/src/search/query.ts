@@ -22,6 +22,15 @@ export function buildSearchBody(
         fuzziness: "AUTO",
       },
     },
+    highlight: {
+      pre_tags: ["<mark>"],
+      post_tags: ["</mark>"],
+      fields: {
+        // Names are short: highlight the whole field, never fragment it.
+        name: { number_of_fragments: 0 },
+        description: { number_of_fragments: 1, fragment_size: 150 },
+      },
+    },
     // Did-you-mean rides along with every search: the phrase suggester
     // scores candidate rewrites against the shingle field, and the default
     // confidence (1.0) only returns rewrites that score higher than the

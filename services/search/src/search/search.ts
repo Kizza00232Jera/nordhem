@@ -45,6 +45,12 @@ export async function searchProducts(
         productClass: source?.product_class ?? null,
         description: source?.description ?? null,
         score: hit._score ?? 0,
+        ...(hit.highlight?.["name"]?.[0] !== undefined && {
+          highlightName: hit.highlight["name"][0],
+        }),
+        ...(hit.highlight?.["description"]?.[0] !== undefined && {
+          highlightDescription: hit.highlight["description"][0],
+        }),
         // Card fields exist only in shop-index documents.
         ...(source?.slug !== undefined && {
           slug: source.slug,
