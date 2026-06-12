@@ -6,25 +6,49 @@ import type { estypes } from "@elastic/elasticsearch";
  * analyzer instead of using `english` directly, so this step and later ones
  * can extend the chain (query-time synonyms, suggester fields) without
  * starting over.
+ *
+ * Synonyms are query-time only: `english_search` = `english_text` +
+ * synonym_graph. Documents are indexed without synonyms, so editing rules
+ * never forces a 43k-doc reindex (and step 9 can hot-reload them).
+ * synonym_graph sits AFTER the stemmer — ES runs the preceding filters
+ * over the rule text too, so rules and query tokens arrive stemmed alike
+ * ("sofas" still hits the "sofa, couch" rule).
  */
-export const ANALYSIS: estypes.IndicesIndexSettingsAnalysis = {
-  filter: {
-    english_possessive_stemmer: { type: "stemmer", language: "possessive_english" },
-    english_stop: { type: "stop", stopwords: "_english_" },
-    english_stemmer: { type: "stemmer", language: "english" },
-  },
-  analyzer: {
-    english_text: {
-      type: "custom",
-      tokenizer: "standard",
-      filter: ["english_possessive_stemmer", "lowercase", "english_stop", "english_stemmer"],
+export function buildAnalysis(
+  synonymRules: string[],
+): estypes.IndicesIndexSettingsAnalysis {
+  return {
+    filter: {
+      english_possessive_stemmer: { type: "stemmer", language: "possessive_english" },
+      english_stop: { type: "stop", stopwords: "_english_" },
+      english_stemmer: { type: "stemmer", language: "english" },
+      english_synonyms: { type: "synonym_graph", synonyms: synonymRules },
     },
-  },
-};
+    analyzer: {
+      english_text: {
+        type: "custom",
+        tokenizer: "standard",
+        filter: ["english_possessive_stemmer", "lowercase", "english_stop", "english_stemmer"],
+      },
+      english_search: {
+        type: "custom",
+        tokenizer: "standard",
+        filter: [
+          "english_possessive_stemmer",
+          "lowercase",
+          "english_stop",
+          "english_stemmer",
+          "english_synonyms",
+        ],
+      },
+    },
+  };
+}
 
 const englishText: estypes.MappingProperty = {
   type: "text",
   analyzer: "english_text",
+  search_analyzer: "english_search",
 };
 
 /**
@@ -34,6 +58,7 @@ const englishText: estypes.MappingProperty = {
 const nameField: estypes.MappingProperty = {
   type: "text",
   analyzer: "english_text",
+  search_analyzer: "english_search",
   fields: {
     keyword: { type: "keyword", ignore_above: 256 },
   },

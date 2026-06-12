@@ -1,6 +1,7 @@
 import type { Client, estypes } from "@elastic/elasticsearch";
 import type { RawProduct } from "../wands/parse.ts";
-import { ANALYSIS, PRODUCT_MAPPINGS, SHOP_MAPPINGS } from "./analysis.ts";
+import { buildAnalysis, PRODUCT_MAPPINGS, SHOP_MAPPINGS } from "./analysis.ts";
+import { loadSynonymRules } from "./synonyms.ts";
 
 /**
  * The document shape in the products index. snake_case mirrors the
@@ -63,7 +64,7 @@ async function recreateAndBulk<T extends { product_id: number }>(
   }
   await es.indices.create({
     index,
-    settings: { analysis: ANALYSIS },
+    settings: { analysis: buildAnalysis(loadSynonymRules()) },
     mappings,
   });
 

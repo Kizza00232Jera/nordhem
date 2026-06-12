@@ -37,6 +37,12 @@ const FIXTURES: RawProduct[] = [
     productClass: "Accent Chairs",
     description: "plush emerald velvet chair for the living room",
   }),
+  makeProduct({
+    productId: 3,
+    name: "three-seat fabric sofa",
+    productClass: "Sofas",
+    description: "deep-seated fabric sofa in oat boucle",
+  }),
 ];
 
 let container: StartedElasticsearchContainer;
@@ -81,5 +87,16 @@ describe("query understanding: analysis chain", () => {
 
     const body = SearchResponseSchema.parse(res.json());
     expect(body.hits.map((h) => h.name)).toContain("velvet accent chair");
+  });
+
+  // Tests the REAL synonyms.txt (sofa, couch, settee) through the
+  // query-time english_search analyzer — what ships is what's tested.
+  // "couch" shares no tokens with the sofa fixture and is >1 edit from
+  // every corpus term, so neither stemming nor fuzziness can fake this.
+  it('expands synonyms: "couch" finds the fabric sofa', async () => {
+    const res = await app.inject({ url: "/search?q=couch" });
+
+    const body = SearchResponseSchema.parse(res.json());
+    expect(body.hits.map((h) => h.name)).toContain("three-seat fabric sofa");
   });
 });
