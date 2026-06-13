@@ -1,7 +1,7 @@
 import type { Client, estypes } from "@elastic/elasticsearch";
 import type { FacetBucket, SearchFacets, SearchHit, SearchResponse } from "@nordhem/shared";
 import type { ProductDocument, ShopDocument } from "../es/indexer.ts";
-import { buildSearchBody } from "./query.ts";
+import { buildSearchBody, type SearchFilters } from "./query.ts";
 
 const DEFAULT_SIZE = 20;
 
@@ -11,6 +11,8 @@ export interface SearchOptions {
   size?: number;
   /** Shop scope only: compute and return facet counts (D7). */
   facets?: boolean;
+  /** Selected facet values to constrain the result set. */
+  filters?: SearchFilters;
 }
 
 /** Read a terms aggregation's buckets into the contract's value/count pairs. */
@@ -32,7 +34,7 @@ export async function searchProducts(
   const size = opts.size ?? DEFAULT_SIZE;
   const res = await es.search<AnyProductDocument>({
     index,
-    ...buildSearchBody(query, size, { facets: opts.facets }),
+    ...buildSearchBody(query, size, { facets: opts.facets, filters: opts.filters }),
   });
 
   const total =

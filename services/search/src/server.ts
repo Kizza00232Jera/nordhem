@@ -17,7 +17,14 @@ export function buildApp({ es, index, shopIndex, logger = false }: AppDeps): Fas
 
   app.get("/health", async () => ({ status: "ok" }));
 
-  app.get<{ Querystring: { q?: string; scope?: string } }>(
+  // A querystring value repeated (?category=a&category=b) arrives as an
+  // array; a single one as a string. Normalize to a trimmed, non-empty list.
+  const toList = (v: string | string[] | undefined): string[] =>
+    (v === undefined ? [] : Array.isArray(v) ? v : [v])
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+  app.get<{ Querystring: { q?: string; scope?: string; category?: string | string[] } }>(
     "/search",
     async (req, reply) => {
       const query = req.query.q?.trim();
@@ -28,10 +35,13 @@ export function buildApp({ es, index, shopIndex, logger = false }: AppDeps): Fas
       if (scope !== "all" && scope !== "shop") {
         return reply.code(400).send({ error: 'scope must be "all" or "shop"' });
       }
-      // Facets are a shop-scope feature: only the curated index has the
-      // `category` field, and the benchmark scope needs no filtering UI (D7).
-      return searchProducts(es, scope === "shop" ? shopIndex : index, query, {
-        facets: scope === "shop",
+      // Facets and filters are a shop-scope feature: only the curated index
+      // has the `category` field, and the benchmark scope needs no filter UI
+      // (D7).
+      const isShop = scope === "shop";
+      return searchProducts(es, isShop ? shopIndex : index, query, {
+        facets: isShop,
+        filters: isShop ? { category: toList(req.query.category) } : undefined,
       });
     },
   );

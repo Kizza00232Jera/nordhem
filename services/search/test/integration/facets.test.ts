@@ -97,3 +97,33 @@ describe("facets: category terms aggregation", () => {
     expect(counts).toEqual({ sofas: 2, beds: 1 });
   });
 });
+
+describe("filtering: a selected category narrows the hits", () => {
+  it("returns only products in the chosen category", async () => {
+    const res = await app.inject({ url: "/search?q=oak&scope=shop&category=beds" });
+
+    expect(res.statusCode).toBe(200);
+    const body = SearchResponseSchema.parse(res.json());
+    expect(body.total).toBe(1);
+    expect(body.hits.map((h) => h.category)).toEqual(["beds"]);
+  });
+
+  // Regression guard, not a tracer bullet: the category lives in bool.filter
+  // (filter context — no scoring), so a product's _score must be identical
+  // with and without the filter applied. If a refactor ever moved the filter
+  // into `must`, this fails — that's the whole point of pinning it.
+  it("does not change relevance scores (filter context, not query context)", async () => {
+    const all = SearchResponseSchema.parse(
+      (await app.inject({ url: "/search?q=oak&scope=shop" })).json(),
+    );
+    const filtered = SearchResponseSchema.parse(
+      (await app.inject({ url: "/search?q=oak&scope=shop&category=beds" })).json(),
+    );
+
+    const bedScoreUnfiltered = all.hits.find((h) => h.category === "beds")?.score;
+    const bedScoreFiltered = filtered.hits.find((h) => h.category === "beds")?.score;
+
+    expect(bedScoreFiltered).toBeDefined();
+    expect(bedScoreFiltered).toBe(bedScoreUnfiltered);
+  });
+});
