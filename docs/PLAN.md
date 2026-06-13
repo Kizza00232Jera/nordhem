@@ -1,6 +1,6 @@
 # NORDHEM — Build Plan
 
-> **STATUS (2026-06-13): Step 5 IN PROGRESS on branch `step/05-shop-becomes-a-shop`. Cart math committed (cartTotals + mergeCarts, 10 unit tests green). NEXT: install Better Auth + drizzle-kit, generate the auth schema. Full resume checklist and TDD slice sequence are in the Step 5 entry below; read it first.**
+> **STATUS (2026-06-13): Step 5 COMPLETE on branch `step/05-shop-becomes-a-shop` (all 11 slices done). Better Auth + cart + checkout + orders + favorites shipped; D42–D44 recorded. Green: 29 web unit + 16 web integration (real PG) + 2 Playwright e2e + shared/search/tools suites, typecheck + lint + build. NEXT: wrap ritual (teaching HTML, interview bank), then open the Step 5 PR, then Step 6 (relevance lab: measurement).**
 > Repo public at github.com/Kizza00232Jera/nordhem. Local stack: `docker compose up -d`, then `pnpm -F @nordhem/search dev` + `pnpm -F @nordhem/web dev`. Tutor for lessons: `pnpm tutor`.
 
 Every step ends with the wrap-step ritual: working demo → `teaching/step-XX-*.html` with quiz + interviewer Q&A → blog cards proposed → `docs/interview-bank.md` updated → `docs/blog-moments.md` harvested → this file's status updated → commit. Steps are sized roughly an evening-to-weekend each.
@@ -29,10 +29,12 @@ Explicit mappings (`dynamic: strict`) with custom english chain (possessive → 
 JYSK-modelled (Playwright-researched) category-scoped facets with live ES aggregation counts. Universal spine: category (terms), colour + material (terms, extracted from WANDS `product_features` via `wands/features.ts`), price (range over fixed bands). Query vs filter context: multi_match in `bool.must`; category/price cross-cutting in `bool.filter`; colour/material multi-select in `post_filter` (keeps own counts — "tick white, still see black"). Sort (relevance/price asc/desc) + pagination. Facet sidebar UI with counts, chips, clear-all, URL-synced via pure helpers (`lib/facet-url`). Verified live (800-product shop) + 27 ES integration tests. D38–D41.
 *Teaching: aggregations; post_filter for multi-select facets; why filters cache and queries score.* → `teaching/step-04-facets-filters.html`
 
-### 🔨 Step 5 — The shop becomes a shop (IN PROGRESS, branch `step/05-shop-becomes-a-shop`)
+### ✅ Step 5 — The shop becomes a shop (COMPLETE, branch `step/05-shop-becomes-a-shop`)
 Better Auth (email+password + Google), guest cart with merge-on-login, demo checkout (address + fake payment), orders in Postgres, order history, favorites (hearts + favorites page, the jysk.dk "Favoritter" model).
 
-**RESUME HERE (started 2026-06-13):**
+**SHIPPED (2026-06-13):** all 11 slices done across schema → repos (real-PG integration tests) → contracts → Server Actions → optimistic UI → Playwright golden-flow e2e. Decisions D42–D44. Green: 29 web unit, 16 web integration, 2 e2e, plus typecheck/lint/build. Remaining before merge: wrap ritual (teaching HTML + interview bank) and the squash PR. The checklist below is the original build plan, kept for reference.
+
+**ORIGINAL PLAN (for reference):**
 
 DONE so far:
 - Branch cut off `main`. Cart math helpers in `apps/web/lib/` (`cart-totals.ts`, `cart-merge.ts`) with 10 green unit tests (`apps/web/test/cart-totals.test.ts`, `cart-merge.test.ts`). Committed.
