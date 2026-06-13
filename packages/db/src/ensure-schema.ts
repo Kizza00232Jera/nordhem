@@ -161,4 +161,21 @@ export async function ensureSchema(db: Db): Promise<void> {
       PRIMARY KEY (user_id, product_id)
     )
   `);
+
+  // Step 6 relevance lab: WANDS evaluation set. Mirror schema.ts exactly.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS eval_queries (
+      query_id integer PRIMARY KEY,
+      query text NOT NULL,
+      query_class text
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS eval_judgments (
+      query_id integer NOT NULL REFERENCES eval_queries(query_id) ON DELETE CASCADE,
+      product_id integer NOT NULL,
+      grade integer NOT NULL,
+      PRIMARY KEY (query_id, product_id)
+    )
+  `);
 }

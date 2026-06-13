@@ -238,3 +238,34 @@ export const favorites = pgTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.productId] })],
 );
+
+// ---------------------------------------------------------------------------
+// Step 6 relevance lab: the WANDS evaluation set (480 queries + ~233k human
+// judgments). Reference data, loaded from the dataset; the eval harness reads
+// it to score search runs.
+// ---------------------------------------------------------------------------
+
+/** A WANDS benchmark query. */
+export const evalQueries = pgTable("eval_queries", {
+  queryId: integer("query_id").primaryKey(),
+  query: text("query").notNull(),
+  queryClass: text("query_class"),
+});
+
+/**
+ * One human relevance judgment: how relevant a product is to a query, as a
+ * graded value (Exact=2, Partial=1, Irrelevant=0). Composite pk (one grade per
+ * query/product pair). productId is a plain int, not an FK: judgments are a
+ * flat fact table loaded independently of the catalog.
+ */
+export const evalJudgments = pgTable(
+  "eval_judgments",
+  {
+    queryId: integer("query_id")
+      .notNull()
+      .references(() => evalQueries.queryId, { onDelete: "cascade" }),
+    productId: integer("product_id").notNull(),
+    grade: integer("grade").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.queryId, t.productId] })],
+);

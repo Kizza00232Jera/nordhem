@@ -32,7 +32,7 @@ function dcgAtK(grades: number[], k: number): number {
   let sum = 0;
   const limit = Math.min(k, grades.length);
   for (let i = 0; i < limit; i++) {
-    sum += gain(grades[i]) / discount(i + 1);
+    sum += gain(grades[i] ?? 0) / discount(i + 1);
   }
   return sum;
 }
@@ -60,7 +60,7 @@ export function ndcgAtK(
  */
 export function reciprocalRank(retrievedGrades: number[]): number {
   for (let i = 0; i < retrievedGrades.length; i++) {
-    if (retrievedGrades[i] >= RELEVANT_GRADE) return 1 / (i + 1);
+    if ((retrievedGrades[i] ?? 0) >= RELEVANT_GRADE) return 1 / (i + 1);
   }
   return 0;
 }
@@ -78,7 +78,7 @@ export function recallAtK(
   const limit = Math.min(k, retrievedGrades.length);
   let found = 0;
   for (let i = 0; i < limit; i++) {
-    if (retrievedGrades[i] >= RELEVANT_GRADE) found++;
+    if ((retrievedGrades[i] ?? 0) >= RELEVANT_GRADE) found++;
   }
   return found / totalRelevant;
 }
