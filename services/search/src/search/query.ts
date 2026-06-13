@@ -3,6 +3,17 @@ import type { estypes } from "@elastic/elasticsearch";
 export interface SearchFilters {
   /** Keep only products in any of these categories (exact keyword match). */
   category?: string[];
+  /** Multi-select colour values (post_filter — keeps its own facet counts). */
+  color?: string[];
+  /** Multi-select material values (post_filter). */
+  material?: string[];
+}
+
+function termsClause(
+  field: string,
+  values?: string[],
+): estypes.QueryDslQueryContainer | null {
+  return values?.length ? { terms: { [field]: values } } : null;
 }
 
 export interface SearchBodyOptions {
@@ -16,15 +27,34 @@ export interface SearchBodyOptions {
   filters?: SearchFilters;
 }
 
-/** Translate selected facet values into filter-context clauses. */
-function filterClauses(
+/**
+ * Cross-cutting filters go in bool.filter — they run BEFORE aggregations, so
+ * they narrow both the hits and every facet's counts. Category (and price,
+ * later) are single-select navigators: it's fine for them to constrain the
+ * other facets' counts.
+ */
+function queryFilterClauses(
   filters: SearchFilters = {},
 ): estypes.QueryDslQueryContainer[] {
-  const clauses: estypes.QueryDslQueryContainer[] = [];
-  if (filters.category?.length) {
-    clauses.push({ terms: { category: filters.category } });
-  }
-  return clauses;
+  return [termsClause("category", filters.category)].filter(
+    (c): c is estypes.QueryDslQueryContainer => c !== null,
+  );
+}
+
+/**
+ * Multi-select facets go in post_filter — applied AFTER aggregations, so a
+ * colour selection narrows the returned hits without shrinking the colour
+ * facet's own counts (you ticked white but can still see black to add it).
+ * The documented trade-off: these selections also don't narrow the OTHER
+ * facets' counts, since aggregations never see them (acceptable for Step 4).
+ */
+function postFilterClauses(
+  filters: SearchFilters = {},
+): estypes.QueryDslQueryContainer[] {
+  return [
+    termsClause("color", filters.color),
+    termsClause("material", filters.material),
+  ].filter((c): c is estypes.QueryDslQueryContainer => c !== null);
 }
 
 /**
@@ -46,7 +76,7 @@ function buildQueryClause(
       fuzziness: "AUTO",
     },
   };
-  const clauses = filterClauses(filters);
+  const clauses = queryFilterClauses(filters);
   if (clauses.length === 0) return multiMatch;
   return { bool: { must: [multiMatch], filter: clauses } };
 }
@@ -96,11 +126,20 @@ export function buildSearchBody(
         },
       },
     },
+    // Multi-select facet selections are applied after aggregations so each
+    // such facet keeps its own counts (see postFilterClauses).
+    ...(() => {
+      const post = postFilterClauses(opts.filters);
+      return post.length ? { post_filter: { bool: { filter: post } } } : {};
+    })(),
     // Facet counts ride along on the same request: one round trip returns
     // hits, highlights, did-you-mean, and the aggregation buckets together.
+    // size 50 on colour/material comfortably covers their value vocabularies.
     ...(opts.facets && {
       aggregations: {
         categories: { terms: { field: "category", size: 20 } },
+        colors: { terms: { field: "color", size: 50 } },
+        materials: { terms: { field: "material", size: 50 } },
       },
     }),
     size,

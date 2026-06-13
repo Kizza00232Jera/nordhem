@@ -25,6 +25,8 @@ const SHOP_FIXTURES: ShopDocument[] = [
     category: "sofas",
     price_cents: 79999,
     image_thumb_url: null,
+    color: "white",
+    material: "fabric",
   },
   {
     product_id: 2,
@@ -35,6 +37,8 @@ const SHOP_FIXTURES: ShopDocument[] = [
     category: "sofas",
     price_cents: 99999,
     image_thumb_url: null,
+    color: "white",
+    material: "velvet",
   },
   {
     product_id: 3,
@@ -45,6 +49,8 @@ const SHOP_FIXTURES: ShopDocument[] = [
     category: "beds",
     price_cents: 119999,
     image_thumb_url: null,
+    color: "black",
+    material: "oak",
   },
 ];
 
@@ -125,5 +131,47 @@ describe("filtering: a selected category narrows the hits", () => {
 
     expect(bedScoreFiltered).toBeDefined();
     expect(bedScoreFiltered).toBe(bedScoreUnfiltered);
+  });
+});
+
+describe("facets: colour and material terms aggregations", () => {
+  it("counts colours and materials over the matching products", async () => {
+    const body = SearchResponseSchema.parse(
+      (await app.inject({ url: "/search?q=oak&scope=shop" })).json(),
+    );
+
+    const colors = Object.fromEntries(
+      (body.facets?.colors ?? []).map((b) => [b.value, b.count]),
+    );
+    const materials = Object.fromEntries(
+      (body.facets?.materials ?? []).map((b) => [b.value, b.count]),
+    );
+    expect(colors).toEqual({ white: 2, black: 1 });
+    expect(materials).toEqual({ fabric: 1, velvet: 1, oak: 1 });
+  });
+});
+
+describe("multi-select: a colour selection narrows hits but keeps its own counts", () => {
+  // The post_filter lever: a multi-select facet's own selection is applied
+  // AFTER the aggregations, so the colour facet still lists every colour
+  // (you can add black to white), while the returned hits are white-only.
+  it("returns only white products yet the colour facet still shows black", async () => {
+    const body = SearchResponseSchema.parse(
+      (await app.inject({ url: "/search?q=oak&scope=shop&color=white" })).json(),
+    );
+
+    // Hits are narrowed to the two white sofas.
+    expect(body.total).toBe(2);
+    expect(body.hits.map((h) => h.slug).sort()).toEqual([
+      "oak-three-seat-sofa-2",
+      "oak-two-seat-sofa-1",
+    ]);
+
+    // But the colour facet still offers black with its count — the whole
+    // point of post_filter (a bool.filter here would zero it out).
+    const colors = Object.fromEntries(
+      (body.facets?.colors ?? []).map((b) => [b.value, b.count]),
+    );
+    expect(colors).toEqual({ white: 2, black: 1 });
   });
 });

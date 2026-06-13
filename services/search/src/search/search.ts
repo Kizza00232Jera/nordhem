@@ -51,7 +51,11 @@ export async function searchProducts(
   const suggestion = dymOptions[0]?.text;
 
   const facets: SearchFacets | undefined = opts.facets
-    ? { categories: termsBuckets(res.aggregations?.["categories"]) }
+    ? {
+        categories: termsBuckets(res.aggregations?.["categories"]),
+        colors: termsBuckets(res.aggregations?.["colors"]),
+        materials: termsBuckets(res.aggregations?.["materials"]),
+      }
     : undefined;
 
   return {

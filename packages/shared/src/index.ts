@@ -46,6 +46,8 @@ export const FacetBucketSchema = z.object({
  */
 export const SearchFacetsSchema = z.object({
   categories: z.array(FacetBucketSchema),
+  colors: z.array(FacetBucketSchema),
+  materials: z.array(FacetBucketSchema),
 });
 
 export const SearchResponseSchema = z.object({

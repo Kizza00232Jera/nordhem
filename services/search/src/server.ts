@@ -24,7 +24,15 @@ export function buildApp({ es, index, shopIndex, logger = false }: AppDeps): Fas
       .map((s) => s.trim())
       .filter(Boolean);
 
-  app.get<{ Querystring: { q?: string; scope?: string; category?: string | string[] } }>(
+  app.get<{
+    Querystring: {
+      q?: string;
+      scope?: string;
+      category?: string | string[];
+      color?: string | string[];
+      material?: string | string[];
+    };
+  }>(
     "/search",
     async (req, reply) => {
       const query = req.query.q?.trim();
@@ -41,7 +49,13 @@ export function buildApp({ es, index, shopIndex, logger = false }: AppDeps): Fas
       const isShop = scope === "shop";
       return searchProducts(es, isShop ? shopIndex : index, query, {
         facets: isShop,
-        filters: isShop ? { category: toList(req.query.category) } : undefined,
+        filters: isShop
+          ? {
+              category: toList(req.query.category),
+              color: toList(req.query.color),
+              material: toList(req.query.material),
+            }
+          : undefined,
       });
     },
   );

@@ -75,6 +75,8 @@ describe("SearchResponse contract", () => {
           { value: "sofas", count: 2 },
           { value: "beds", count: 1 },
         ],
+        colors: [{ value: "white", count: 2 }],
+        materials: [{ value: "velvet", count: 1 }],
       },
     };
 
@@ -83,6 +85,8 @@ describe("SearchResponse contract", () => {
       { value: "sofas", count: 2 },
       { value: "beds", count: 1 },
     ]);
+    expect(parsed.facets?.colors).toEqual([{ value: "white", count: 2 }]);
+    expect(parsed.facets?.materials).toEqual([{ value: "velvet", count: 1 }]);
   });
 
   it("roundtrips shop-index hits carrying storefront card fields", () => {

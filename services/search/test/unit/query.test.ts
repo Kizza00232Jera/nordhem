@@ -48,10 +48,38 @@ describe("buildSearchBody facets", () => {
   // from the ES terms-aggregation docs. size 20 comfortably covers the 8
   // shop categories. Facets are opt-in so the benchmark scope (which has no
   // `category` field) and the no-facet callers stay byte-for-byte unchanged.
-  it("adds a category terms aggregation when facets are requested", () => {
+  it("adds category, colour and material terms aggregations when facets are requested", () => {
     const body = buildSearchBody("oak", 20, { facets: true });
     expect(body.aggregations).toEqual({
       categories: { terms: { field: "category", size: 20 } },
+      colors: { terms: { field: "color", size: 50 } },
+      materials: { terms: { field: "material", size: 50 } },
+    });
+  });
+
+  it("puts multi-select colour/material in post_filter, not bool.filter", () => {
+    const body = buildSearchBody("oak", 20, {
+      filters: { color: ["white"], category: ["sofas"] },
+    });
+    // category is a cross-cutting bool.filter clause...
+    expect(body.query).toEqual({
+      bool: {
+        must: [
+          {
+            multi_match: {
+              query: "oak",
+              type: "best_fields",
+              fields: ["name^3", "product_class^2", "description"],
+              fuzziness: "AUTO",
+            },
+          },
+        ],
+        filter: [{ terms: { category: ["sofas"] } }],
+      },
+    });
+    // ...while colour is applied after aggregations via post_filter.
+    expect(body.post_filter).toEqual({
+      bool: { filter: [{ terms: { color: ["white"] } }] },
     });
   });
 });
