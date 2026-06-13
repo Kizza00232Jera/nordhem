@@ -104,4 +104,61 @@ export async function ensureSchema(db: Db): Promise<void> {
       source text NOT NULL
     )
   `);
+
+  // Step 5 commerce tables (D43, D44). Mirror schema.ts exactly.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS cart (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id text UNIQUE REFERENCES "user"(id) ON DELETE CASCADE,
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS cart_items (
+      cart_id uuid NOT NULL REFERENCES cart(id) ON DELETE CASCADE,
+      product_id integer NOT NULL REFERENCES shop_products(product_id) ON DELETE CASCADE,
+      quantity integer NOT NULL,
+      PRIMARY KEY (cart_id, product_id)
+    )
+  `);
+  await db.execute(sql`CREATE SEQUENCE IF NOT EXISTS order_number_seq START 1`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS orders (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      order_number text NOT NULL UNIQUE,
+      user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      status text NOT NULL DEFAULT 'paid',
+      ship_full_name text NOT NULL,
+      ship_line1 text NOT NULL,
+      ship_line2 text,
+      ship_city text NOT NULL,
+      ship_postal_code text NOT NULL,
+      ship_country text NOT NULL,
+      subtotal_cents integer NOT NULL,
+      shipping_cents integer NOT NULL,
+      total_cents integer NOT NULL,
+      created_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS order_items (
+      id serial PRIMARY KEY,
+      order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      product_id integer NOT NULL,
+      name_snapshot text NOT NULL,
+      slug_snapshot text NOT NULL,
+      image_url_snapshot text,
+      unit_price_cents integer NOT NULL,
+      quantity integer NOT NULL
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS favorites (
+      user_id text NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      product_id integer NOT NULL REFERENCES shop_products(product_id) ON DELETE CASCADE,
+      created_at timestamp NOT NULL DEFAULT now(),
+      PRIMARY KEY (user_id, product_id)
+    )
+  `);
 }

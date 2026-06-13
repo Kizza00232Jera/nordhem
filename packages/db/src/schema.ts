@@ -2,10 +2,13 @@ import {
   boolean,
   doublePrecision,
   integer,
+  pgSequence,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -130,3 +133,108 @@ export const photoPool = pgTable("photo_pool", {
   photographerUrl: text("photographer_url").notNull(),
   source: text("source").notNull(),
 });
+
+// ---------------------------------------------------------------------------
+// Step 5 commerce tables (D43, D44).
+// ---------------------------------------------------------------------------
+
+/**
+ * A shopping cart. A guest cart has a null userId and is found by the
+ * `cart_id` cookie (D43); a logged-in cart sets userId. `userId` is unique
+ * (nullable), which lets Postgres hold many guest carts — NULLs are distinct —
+ * while enforcing exactly one cart per registered user. Merge-on-login moves
+ * the guest cart's items in and deletes the guest row.
+ */
+export const cart = pgTable("cart", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id")
+    .unique()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * A line in a cart. Composite pk (cartId, productId) makes "the same product
+ * is one line" a database invariant and is the upsert target when quantity is
+ * bumped. No price column: the cart always reflects the live shop price; price
+ * is only frozen into an order at checkout.
+ */
+export const cartItems = pgTable(
+  "cart_items",
+  {
+    cartId: uuid("cart_id")
+      .notNull()
+      .references(() => cart.id, { onDelete: "cascade" }),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => shopProducts.productId, { onDelete: "cascade" }),
+    quantity: integer("quantity").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.cartId, t.productId] })],
+);
+
+/** Backs the human-readable order number NDH-2026-000123 (D43). */
+export const orderNumberSeq = pgSequence("order_number_seq", { startWith: 1 });
+
+/**
+ * A placed order. uuid internal pk; `orderNumber` is the human-facing
+ * NDH-YYYY-NNNNNN drawn from order_number_seq at checkout. Totals are frozen
+ * in cents. Demo checkout, so a single 'paid' status is enough for now.
+ */
+export const orders = pgTable("orders", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderNumber: text("order_number").notNull().unique(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("paid"),
+  shipFullName: text("ship_full_name").notNull(),
+  shipLine1: text("ship_line1").notNull(),
+  shipLine2: text("ship_line2"),
+  shipCity: text("ship_city").notNull(),
+  shipPostalCode: text("ship_postal_code").notNull(),
+  shipCountry: text("ship_country").notNull(),
+  subtotalCents: integer("subtotal_cents").notNull(),
+  shippingCents: integer("shipping_cents").notNull(),
+  totalCents: integer("total_cents").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/**
+ * A frozen line of an order. productId is a plain integer (not an FK): order
+ * history must survive a product being decurated, and must NEVER re-derive
+ * name/price from the live catalog — everything needed to render the line is
+ * snapshotted here at checkout (D44).
+ */
+export const orderItems = pgTable("order_items", {
+  id: serial("id").primaryKey(),
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  productId: integer("product_id").notNull(),
+  nameSnapshot: text("name_snapshot").notNull(),
+  slugSnapshot: text("slug_snapshot").notNull(),
+  imageUrlSnapshot: text("image_url_snapshot"),
+  unitPriceCents: integer("unit_price_cents").notNull(),
+  quantity: integer("quantity").notNull(),
+});
+
+/**
+ * A user's favorited product (the jysk.dk "Favoritter" model). Favorites
+ * require login (D43), so there is no guest table. Composite pk makes a
+ * favorite idempotent per user; both sides cascade.
+ */
+export const favorites = pgTable(
+  "favorites",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => shopProducts.productId, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.productId] })],
+);
