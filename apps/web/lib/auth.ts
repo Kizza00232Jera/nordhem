@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
+import { mergeGuestCartForUser } from "./guest-cart-merge";
 
 /**
  * Better Auth (D42). Users live in our own Postgres — the "retailer owns its
@@ -28,6 +29,17 @@ export function buildAuth(database: Db) {
       schema: { user, session, account, verification },
     }),
     emailAndPassword: { enabled: true },
+    // Fires on every new session (email/password AND Google), so the guest
+    // cart merges into the account no matter how the shopper signs in.
+    databaseHooks: {
+      session: {
+        create: {
+          after: async (newSession: { userId: string }) => {
+            await mergeGuestCartForUser(newSession.userId);
+          },
+        },
+      },
+    },
     socialProviders: googleConfigured
       ? {
           google: {

@@ -167,7 +167,8 @@ function PriceFacet({
                 type="radio"
                 name="price"
                 checked={selected === b.key}
-                onChange={() => onSelect(b.key)}
+                readOnly
+                onClick={() => onSelect(b.key)}
                 className="size-4 accent-pine"
               />
               <span className="flex-1">{PRICE_LABELS[b.key] ?? b.key}</span>
