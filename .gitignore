@@ -24,3 +24,8 @@ docs/blog-moments.md
 *.log
 .DS_Store
 Thumbs.db
+
+# playwright e2e artifacts
+/apps/web/test-results/
+/apps/web/playwright-report/
+/apps/web/.playwright/

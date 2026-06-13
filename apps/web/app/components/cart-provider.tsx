@@ -5,6 +5,7 @@ import {
   createContext,
   startTransition,
   useContext,
+  useEffect,
   useOptimistic,
   useState,
 } from "react";
@@ -87,6 +88,13 @@ export function CartProvider({
   const [authCart, setAuthCart] = useState(initialCart);
   const [cart, applyPatch] = useOptimistic(authCart, reducer);
   const [open, setOpen] = useState(false);
+
+  // Hydration marker: the whole app is wrapped in this provider, so once it
+  // mounts the interactive bits (cart, favorites) are live. The e2e waits on
+  // [data-hydrated] before clicking client-only controls.
+  useEffect(() => {
+    document.documentElement.setAttribute("data-hydrated", "true");
+  }, []);
 
   function run(patch: Patch, server: () => Promise<CartView>) {
     startTransition(async () => {

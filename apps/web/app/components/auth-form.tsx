@@ -1,18 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { mergeGuestCartAfterLoginAction } from "../actions/auth";
+import { useActionState } from "react";
+import {
+  signInAction,
+  signUpAction,
+  type AccountState,
+} from "../actions/account";
 import { authClient } from "../../lib/auth-client";
 
 type Mode = "login" | "signup";
 
 /**
- * Email+password auth form (login or signup). Auth itself goes through the
- * Better Auth browser client (which sets the session cookie via our route
- * handler); on success we fold any guest cart into the account (D43) and move
- * on. The Google button only renders when the server says it is configured.
+ * Email+password auth form. Submits to a Server Action (signUp/signIn), so it
+ * works before hydration and without JS — the action sets the session cookie
+ * and folds in the guest cart. The Google button is the one client-only bit
+ * and only renders when the server says Google is configured.
  */
 export function AuthForm({
   mode,
@@ -23,34 +26,11 @@ export function AuthForm({
   googleEnabled: boolean;
   next?: string;
 }) {
-  const router = useRouter();
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setPending(true);
-    const form = new FormData(e.currentTarget);
-    const email = String(form.get("email"));
-    const password = String(form.get("password"));
-    const name = String(form.get("name") ?? "");
-
-    const result =
-      mode === "signup"
-        ? await authClient.signUp.email({ email, password, name })
-        : await authClient.signIn.email({ email, password });
-
-    if (result.error) {
-      setError(result.error.message ?? "Something went wrong. Please try again.");
-      setPending(false);
-      return;
-    }
-
-    await mergeGuestCartAfterLoginAction();
-    router.push(next);
-    router.refresh();
-  }
+  const action = mode === "signup" ? signUpAction : signInAction;
+  const [state, formAction, pending] = useActionState<AccountState, FormData>(
+    action,
+    {},
+  );
 
   return (
     <div className="mx-auto w-full max-w-sm">
@@ -63,17 +43,12 @@ export function AuthForm({
           : "Welcome back to NORDHEM."}
       </p>
 
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+      <form action={formAction} className="mt-8 space-y-4">
+        <input type="hidden" name="next" value={next} />
         {mode === "signup" && (
           <Field label="Name" name="name" type="text" autoComplete="name" required />
         )}
-        <Field
-          label="Email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-        />
+        <Field label="Email" name="email" type="email" autoComplete="email" required />
         <Field
           label="Password"
           name="password"
@@ -83,9 +58,9 @@ export function AuthForm({
           required
         />
 
-        {error && (
+        {state.error && (
           <p role="alert" className="text-[14px] text-error">
-            {error}
+            {state.error}
           </p>
         )}
 
