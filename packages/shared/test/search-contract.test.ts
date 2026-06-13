@@ -77,6 +77,10 @@ describe("SearchResponse contract", () => {
         ],
         colors: [{ value: "white", count: 2 }],
         materials: [{ value: "velvet", count: 1 }],
+        prices: [
+          { key: "under-500", to: 50000, count: 0 },
+          { key: "500-1000", from: 50000, to: 100000, count: 2 },
+        ],
       },
     };
 
@@ -87,6 +91,12 @@ describe("SearchResponse contract", () => {
     ]);
     expect(parsed.facets?.colors).toEqual([{ value: "white", count: 2 }]);
     expect(parsed.facets?.materials).toEqual([{ value: "velvet", count: 1 }]);
+    expect(parsed.facets?.prices?.[1]).toEqual({
+      key: "500-1000",
+      from: 50000,
+      to: 100000,
+      count: 2,
+    });
   });
 
   it("roundtrips shop-index hits carrying storefront card fields", () => {

@@ -54,6 +54,17 @@ describe("buildSearchBody facets", () => {
       categories: { terms: { field: "category", size: 20 } },
       colors: { terms: { field: "color", size: 50 } },
       materials: { terms: { field: "material", size: 50 } },
+      prices: {
+        range: {
+          field: "price_cents",
+          ranges: [
+            { key: "under-500", to: 50_000 },
+            { key: "500-1000", from: 50_000, to: 100_000 },
+            { key: "1000-2000", from: 100_000, to: 200_000 },
+            { key: "2000-plus", from: 200_000 },
+          ],
+        },
+      },
     });
   });
 

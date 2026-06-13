@@ -151,6 +151,67 @@ describe("facets: colour and material terms aggregations", () => {
   });
 });
 
+describe("sorting and pagination", () => {
+  it("sorts by price ascending", async () => {
+    const body = SearchResponseSchema.parse(
+      (await app.inject({ url: "/search?q=oak&scope=shop&sort=price_asc" })).json(),
+    );
+    expect(body.hits.map((h) => h.slug)).toEqual([
+      "oak-two-seat-sofa-1", // 79999
+      "oak-three-seat-sofa-2", // 99999
+      "oak-platform-bed-3", // 119999
+    ]);
+  });
+
+  it("paginates: page 2 returns the next slice, total unchanged", async () => {
+    const page1 = SearchResponseSchema.parse(
+      (await app.inject({ url: "/search?q=oak&scope=shop&sort=price_asc&size=2&page=1" })).json(),
+    );
+    const page2 = SearchResponseSchema.parse(
+      (await app.inject({ url: "/search?q=oak&scope=shop&sort=price_asc&size=2&page=2" })).json(),
+    );
+
+    expect(page1.total).toBe(3);
+    expect(page2.total).toBe(3);
+    expect(page1.hits.map((h) => h.slug)).toEqual([
+      "oak-two-seat-sofa-1",
+      "oak-three-seat-sofa-2",
+    ]);
+    expect(page2.hits.map((h) => h.slug)).toEqual(["oak-platform-bed-3"]);
+  });
+});
+
+describe("facets: price range bands", () => {
+  // Fixture prices: 79999 and 99999 fall in the 500-1000 band; 119999 in
+  // 1000-2000. Bands are fixed (cents): under-500 <50000, 500-1000, etc.
+  it("counts products into the fixed price bands", async () => {
+    const body = SearchResponseSchema.parse(
+      (await app.inject({ url: "/search?q=oak&scope=shop" })).json(),
+    );
+
+    const bands = Object.fromEntries(
+      (body.facets?.prices ?? []).map((b) => [b.key, b.count]),
+    );
+    expect(bands).toEqual({
+      "under-500": 0,
+      "500-1000": 2,
+      "1000-2000": 1,
+      "2000-plus": 0,
+    });
+  });
+});
+
+describe("filtering: a price range narrows the hits", () => {
+  it("keeps only products at or above the minimum price", async () => {
+    const body = SearchResponseSchema.parse(
+      (await app.inject({ url: "/search?q=oak&scope=shop&priceMin=100000" })).json(),
+    );
+
+    expect(body.total).toBe(1);
+    expect(body.hits[0]?.slug).toBe("oak-platform-bed-3");
+  });
+});
+
 describe("multi-select: a colour selection narrows hits but keeps its own counts", () => {
   // The post_filter lever: a multi-select facet's own selection is applied
   // AFTER the aggregations, so the colour facet still lists every colour

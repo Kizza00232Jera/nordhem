@@ -7,7 +7,23 @@ export interface SearchFilters {
   color?: string[];
   /** Multi-select material values (post_filter). */
   material?: string[];
+  /** Inclusive price bounds in cents (cross-cutting bool.filter range). */
+  priceMin?: number;
+  priceMax?: number;
 }
+
+/**
+ * Fixed price bands (cents), shopper-friendly like JYSK's rather than a raw
+ * histogram — our shop prices are synthetic/deterministic (D29), so fixed
+ * bands read cleanly and give hand-countable test fixtures. Reused as both
+ * the range-aggregation buckets and the band-id vocabulary.
+ */
+const PRICE_BANDS: { key: string; from?: number; to?: number }[] = [
+  { key: "under-500", to: 50_000 },
+  { key: "500-1000", from: 50_000, to: 100_000 },
+  { key: "1000-2000", from: 100_000, to: 200_000 },
+  { key: "2000-plus", from: 200_000 },
+];
 
 function termsClause(
   field: string,
@@ -15,6 +31,19 @@ function termsClause(
 ): estypes.QueryDslQueryContainer | null {
   return values?.length ? { terms: { [field]: values } } : null;
 }
+
+function priceRangeClause(
+  filters: SearchFilters,
+): estypes.QueryDslQueryContainer | null {
+  const { priceMin, priceMax } = filters;
+  if (priceMin == null && priceMax == null) return null;
+  const range: { gte?: number; lte?: number } = {};
+  if (priceMin != null) range.gte = priceMin;
+  if (priceMax != null) range.lte = priceMax;
+  return { range: { price_cents: range } };
+}
+
+export type SortOption = "relevance" | "price_asc" | "price_desc";
 
 export interface SearchBodyOptions {
   /**
@@ -25,6 +54,16 @@ export interface SearchBodyOptions {
   facets?: boolean;
   /** Selected facet values to constrain the result set (filter context). */
   filters?: SearchFilters;
+  /** Result ordering; "relevance" (default) leaves the BM25 _score order. */
+  sort?: SortOption;
+  /** Offset for pagination (page-1)*size; omitted means the first page. */
+  from?: number;
+}
+
+function sortClause(sort?: SortOption): estypes.Sort | undefined {
+  if (sort === "price_asc") return [{ price_cents: { order: "asc" } }];
+  if (sort === "price_desc") return [{ price_cents: { order: "desc" } }];
+  return undefined;
 }
 
 /**
@@ -36,7 +75,7 @@ export interface SearchBodyOptions {
 function queryFilterClauses(
   filters: SearchFilters = {},
 ): estypes.QueryDslQueryContainer[] {
-  return [termsClause("category", filters.category)].filter(
+  return [termsClause("category", filters.category), priceRangeClause(filters)].filter(
     (c): c is estypes.QueryDslQueryContainer => c !== null,
   );
 }
@@ -140,8 +179,11 @@ export function buildSearchBody(
         categories: { terms: { field: "category", size: 20 } },
         colors: { terms: { field: "color", size: 50 } },
         materials: { terms: { field: "material", size: 50 } },
+        prices: { range: { field: "price_cents", ranges: PRICE_BANDS } },
       },
     }),
+    ...(sortClause(opts.sort) && { sort: sortClause(opts.sort) }),
+    ...(opts.from ? { from: opts.from } : {}),
     size,
   };
 }
