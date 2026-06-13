@@ -1,5 +1,7 @@
-import type { Client } from "@elastic/elasticsearch";
+import type { Client, estypes } from "@elastic/elasticsearch";
 import type { RawProduct } from "../wands/parse.ts";
+import { buildAnalysis, PRODUCT_MAPPINGS, SHOP_MAPPINGS } from "./analysis.ts";
+import { loadSynonymRules } from "./synonyms.ts";
 
 /**
  * The document shape in the products index. snake_case mirrors the
@@ -47,20 +49,24 @@ export interface ShopDocument {
 }
 
 /**
- * Drop-and-rebuild indexing, step-1 naive on purpose: no explicit mapping,
- * so Elasticsearch dynamic-maps strings to text + .keyword subfields with
- * the standard analyzer. Step 3 replaces this with a real mapping and
- * measures the difference in the relevance lab.
+ * Drop-and-rebuild indexing with the explicit step-3 mapping: custom English
+ * analysis chain (see analysis.ts) instead of step 1's dynamic mapping with
+ * the standard analyzer.
  */
 async function recreateAndBulk<T extends { product_id: number }>(
   es: Client,
   index: string,
   docs: T[],
+  mappings: estypes.MappingTypeMapping,
 ): Promise<number> {
   if (await es.indices.exists({ index })) {
     await es.indices.delete({ index });
   }
-  await es.indices.create({ index });
+  await es.indices.create({
+    index,
+    settings: { analysis: buildAnalysis(loadSynonymRules()) },
+    mappings,
+  });
 
   const result = await es.helpers.bulk<T>({
     datasource: docs,
@@ -81,7 +87,7 @@ export async function indexProducts(
   index: string,
   products: RawProduct[],
 ): Promise<number> {
-  return recreateAndBulk(es, index, products.map(toDocument));
+  return recreateAndBulk(es, index, products.map(toDocument), PRODUCT_MAPPINGS);
 }
 
 export async function indexShopDocuments(
@@ -89,5 +95,5 @@ export async function indexShopDocuments(
   index: string,
   docs: ShopDocument[],
 ): Promise<number> {
-  return recreateAndBulk(es, index, docs);
+  return recreateAndBulk(es, index, docs, SHOP_MAPPINGS);
 }

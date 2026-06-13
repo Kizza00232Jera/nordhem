@@ -1,0 +1,15 @@
+# NORDHEM synonyms v1 — Solr format, equivalence groups.
+# Applied query-time (english_search analyzer); editing this file does NOT
+# require a reindex, only an index-settings update or recreate.
+# Step 9 replaces this file with Postgres-stored, studio-editable rules.
+
+sofa, couch, settee
+rug, carpet
+wardrobe, armoire
+nightstand, bedside table
+cushion, pillow
+lamp, light fixture
+tv stand, entertainment center, media console
+shelf, shelving, bookcase
+ottoman, footstool, pouf
+duvet, comforter

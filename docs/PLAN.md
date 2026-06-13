@@ -1,6 +1,6 @@
 # NORDHEM — Build Plan
 
-> **STATUS (2026-06-12): Step 2 complete (PR #2, CI green). Next: Step 3 — Query understanding.**
+> **STATUS (2026-06-13): Step 3 built on `step/03-query-understanding` (pushed, PR pending). Next: open/merge PR #3, then Step 4 — Facets & filters.**
 > Repo public at github.com/Kizza00232Jera/nordhem. Local stack: `docker compose up -d`, then `pnpm -F @nordhem/search dev` + `pnpm -F @nordhem/web dev`. Tutor for lessons: `pnpm tutor`.
 
 Every step ends with the wrap-step ritual: working demo → `teaching/step-XX-*.html` with quiz + interviewer Q&A → blog cards proposed → `docs/interview-bank.md` updated → `docs/blog-moments.md` harvested → this file's status updated → commit. Steps are sized roughly an evening-to-weekend each.
@@ -18,9 +18,12 @@ pnpm monorepo (`apps/web`, `services/search`, `packages/shared`, `tools`). Docke
 800 products curated across 8 categories (deterministic selection + Knuth-hash synthetic prices). Unsplash pipeline: 45 requests for 800 photos via per-class pooling, credit stored, studio swaps survive re-runs. NORDHEM design system live (Fraunces + Schibsted, paper/pine/amber); home, PLP, PDP, card-grid search. `products-shop` ES index + `scope=shop|all`. Studio v0 image review with swap. PostHog EU with `project: nordhem` super property. `@nordhem/db` extracted (lite-mode browsing). Local tutor server (`pnpm tutor`, D28). PR #2.
 *Teaching: data pipeline design; App Router patterns (server components, streaming, caching); image CDNs/hotlinking.* → `teaching/step-02-storefront.html`
 
-### ⬜ Step 3 — Query understanding
-Proper mapping & analyzers (English stemming, shingles, keyword subfields). `multi_match` (best_fields vs cross_fields), fuzziness (typo tolerance), synonyms v1 (file-based), did-you-mean suggester, autocomplete (`search_as_you_type`) with accessible debounced React combobox, highlighting, URL-synced search state.
-*Teaching: the analysis chain end to end; BM25 intro; edit distance; multi_match types. Densest interview zone.*
+### ✅ Step 3 — Query understanding (built 2026-06-13, PR pending)
+Explicit mappings (`dynamic: strict`) with custom english chain (possessive → lowercase → stop → stemmer); `name` multi-fields keyword/trigram/sayt. Boosted `best_fields` (name^3, product_class^2) + fuzziness AUTO. Query-time synonyms (`synonyms.txt` → synonym_graph AFTER the stemmer, search-analyzer only — no reindex on rule edits). Did-you-mean phrase suggester over unstemmed shingles (optional `suggestion` in contract). `/autocomplete` (search_as_you_type + bool_prefix) → Next `/api/autocomplete` proxy (800ms cap, degrades silently). ARIA combobox in header (debounce 200ms + AbortController, arrows/enter/escape, URL-synced) with new apps/web Vitest+RTL rig. Highlighting rendered by `<mark>`-splitting, never innerHTML. Verified on real data: "vellvet"→22 hits highlighted, "couch"→122 sofas, "platfrom bed"→"platform bed", "vel"→8 suggestions. D33–D37.
+*Teaching: the analysis chain end to end; BM25 intro; edit distance; multi_match types. Densest interview zone.* → `teaching/step-03-query-understanding.html`
+
+### ⬜ Interlude 3.5 — Query DSL compendium (teaching only — BUILD BEFORE STEP 4 STARTS)
+**One-shot reminder, requested by Antonio 2026-06-13 (delete this entry once the lesson exists).** When he says "start step 4": FIRST prompt him to build `teaching/step-03.5-query-dsl.html` (standard teach-step format: explanations, NORDHEM-flavored code examples, write-code dojo prompts, quiz, tutor). Scope is exactly the query types his tutor listed for him, one section each: `match` (one-field workhorse), `multi_match` (several fields — what we use), `term` (exact, no analyzer — status/category ids), `bool` (the combiner: must/should/must_not, the step-4 big one), `range` (numbers/dates, e.g. price 100–500), `match_all`. Plus the framing rule: `query` holds exactly one type, and the type describes HOW to look. Build it, verify dojo solutions/starters, add the hub card, then delete this entry.
 
 ### ⬜ Step 4 — Facets & filters
 Aggregations: category terms, price ranges/histogram, color/material (extracted from WANDS features). Filter UI with counts, sorting, pagination. Filter context vs query context (caching!).

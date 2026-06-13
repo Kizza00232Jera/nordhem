@@ -16,6 +16,11 @@ export const SearchHitSchema = z.object({
   productClass: z.string().nullable(),
   description: z.string().nullable(),
   score: z.number(),
+  // Highlighted variants with <mark> tags around matched terms. The raw
+  // text is NOT html-escaped by the engine — render by splitting on the
+  // tags, never via innerHTML.
+  highlightName: z.string().optional(),
+  highlightDescription: z.string().optional(),
   // Present on shop-index hits only — everything a product card needs.
   // Benchmark-index hits (the 43k corpus) never carry these.
   slug: z.string().optional(),
@@ -30,7 +35,32 @@ export const SearchResponseSchema = z.object({
   total: z.number().int().nonnegative(),
   tookMs: z.number().nonnegative(),
   hits: z.array(SearchHitSchema),
+  // "Did you mean" — present only when the engine has a better-scoring
+  // rewrite of the query (full mode; the lite fallback never suggests).
+  suggestion: z.string().optional(),
 });
 
 export type SearchHit = z.infer<typeof SearchHitSchema>;
 export type SearchResponse = z.infer<typeof SearchResponseSchema>;
+
+/**
+ * Autocomplete contract: deliberately lighter than a search hit — the
+ * combobox needs a label and enough to render a thumbnail row, nothing
+ * else. Card fields appear on shop-scope suggestions only.
+ */
+export const AutocompleteSuggestionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string().optional(),
+  priceCents: z.number().int().optional(),
+  imageThumbUrl: z.string().nullable().optional(),
+});
+
+export const AutocompleteResponseSchema = z.object({
+  query: z.string(),
+  tookMs: z.number().nonnegative(),
+  suggestions: z.array(AutocompleteSuggestionSchema),
+});
+
+export type AutocompleteSuggestion = z.infer<typeof AutocompleteSuggestionSchema>;
+export type AutocompleteResponse = z.infer<typeof AutocompleteResponseSchema>;
