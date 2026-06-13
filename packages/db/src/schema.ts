@@ -2,6 +2,7 @@ import {
   boolean,
   doublePrecision,
   integer,
+  jsonb,
   pgSequence,
   pgTable,
   primaryKey,
@@ -237,4 +238,67 @@ export const favorites = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.productId] })],
+);
+
+// ---------------------------------------------------------------------------
+// Step 6 relevance lab: the WANDS evaluation set (480 queries + ~233k human
+// judgments). Reference data, loaded from the dataset; the eval harness reads
+// it to score search runs.
+// ---------------------------------------------------------------------------
+
+/** A WANDS benchmark query. */
+export const evalQueries = pgTable("eval_queries", {
+  queryId: integer("query_id").primaryKey(),
+  query: text("query").notNull(),
+  queryClass: text("query_class"),
+});
+
+/**
+ * One human relevance judgment: how relevant a product is to a query, as a
+ * graded value (Exact=2, Partial=1, Irrelevant=0). Composite pk (one grade per
+ * query/product pair). productId is a plain int, not an FK: judgments are a
+ * flat fact table loaded independently of the catalog.
+ */
+export const evalJudgments = pgTable(
+  "eval_judgments",
+  {
+    queryId: integer("query_id")
+      .notNull()
+      .references(() => evalQueries.queryId, { onDelete: "cascade" }),
+    productId: integer("product_id").notNull(),
+    grade: integer("grade").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.queryId, t.productId] })],
+);
+
+/**
+ * One evaluation run: the search config scored against the whole query set,
+ * with its aggregate metrics frozen in. Runs accumulate so the studio can
+ * compare them over time (today's baseline vs tomorrow's tuned config).
+ */
+export const evalRuns = pgTable("eval_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  label: text("label").notNull(),
+  indexName: text("index_name").notNull(),
+  queryCount: integer("query_count").notNull(),
+  ndcg: doublePrecision("ndcg").notNull(),
+  mrr: doublePrecision("mrr").notNull(),
+  recall: doublePrecision("recall").notNull(),
+  config: jsonb("config").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/** Per-query scores for a run, so the studio can show best/worst queries. */
+export const evalQueryScores = pgTable(
+  "eval_query_scores",
+  {
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => evalRuns.id, { onDelete: "cascade" }),
+    queryId: integer("query_id").notNull(),
+    ndcg: doublePrecision("ndcg").notNull(),
+    rr: doublePrecision("rr").notNull(),
+    recall: doublePrecision("recall").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.runId, t.queryId] })],
 );

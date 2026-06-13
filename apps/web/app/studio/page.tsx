@@ -29,15 +29,19 @@ export default function StudioHome() {
           </Link>
         </li>
         <li>
-          <span className="flex items-start gap-4 rounded-md border border-dashed border-line p-5 text-ink-muted">
-            <SearchCode aria-hidden className="mt-0.5 size-5" strokeWidth={1.75} />
+          <Link
+            href="/studio/relevance"
+            className="flex items-start gap-4 rounded-md bg-card p-5 shadow-lift transition-shadow hover:shadow-float"
+          >
+            <SearchCode aria-hidden className="mt-0.5 size-5 text-pine" strokeWidth={1.75} />
             <span>
               <span className="block text-[15px] font-semibold">Relevance lab</span>
-              <span className="mt-1 block text-[13px] leading-relaxed">
-                nDCG over 480 judged queries — arrives in build step 6.
+              <span className="mt-1 block text-[13px] leading-relaxed text-ink-muted">
+                nDCG@10, MRR and recall@100 over 480 judged queries. Compare
+                runs and surface the worst queries to fix.
               </span>
             </span>
-          </span>
+          </Link>
         </li>
       </ul>
     </main>
