@@ -1,4 +1,4 @@
-import { createDb, evalJudgments, evalQueries } from "@nordhem/db";
+import { createDb, ensureSchema, evalJudgments, evalQueries } from "@nordhem/db";
 import { createEsClient } from "../es/client.ts";
 import { buildSearchBody } from "../search/query.ts";
 import { runEval, type Judgment } from "./harness.ts";
@@ -16,6 +16,7 @@ const es = createEsClient(esUrl);
 const { db, close } = createDb(databaseUrl);
 
 try {
+  await ensureSchema(db); // self-bootstrap the eval tables (fresh clone / CI)
   const queries = await db.select().from(evalQueries).orderBy(evalQueries.queryId);
   const judgmentRows = await db.select().from(evalJudgments);
 
