@@ -2,20 +2,27 @@ import { describe, expect, it } from "vitest";
 import { buildAutocompleteBody, buildSearchBody } from "../../src/search/query.ts";
 
 describe("buildSearchBody", () => {
-  // Expected DSL written from the Elasticsearch multi_match docs.
-  // Step-3 upgrade over the step-1 baseline: explicit best_fields with
-  // field boosts — a name hit is worth more than a description hit.
-  // best_fields (not cross_fields): product names are short, self-contained
-  // phrases, so the best single field should win; cross_fields treats fields
-  // as one big field and also cannot combine with fuzziness.
-  it("builds a boosted best_fields multi_match over the three text fields", () => {
+  // Step-7 graduated default (DEFAULT_RANKING): the step-3 boosted best_fields
+  // multi_match, now with a fuzziness prefix_length of 2 (so "light" cannot
+  // fuzzy-match "right") and a match_phrase `should` that rewards the typed
+  // words appearing together in the name. Measured to lift full-set nDCG@10
+  // from 0.6532 to ~0.6629 and confirmed on the held-out test split.
+  it("builds the graduated step-7 query: boosted multi_match + prefix_length + phrase boost", () => {
     expect(buildSearchBody("outdoor chair", 20)).toEqual({
       query: {
-        multi_match: {
-          query: "outdoor chair",
-          type: "best_fields",
-          fields: ["name^3", "product_class^2", "description"],
-          fuzziness: "AUTO",
+        bool: {
+          must: [
+            {
+              multi_match: {
+                query: "outdoor chair",
+                type: "best_fields",
+                fields: ["name^3", "product_class^2", "description"],
+                fuzziness: "AUTO",
+                prefix_length: 2,
+              },
+            },
+          ],
+          should: [{ match_phrase: { name: { query: "outdoor chair", slop: 2, boost: 4 } } }],
         },
       },
       highlight: {
@@ -72,7 +79,8 @@ describe("buildSearchBody facets", () => {
     const body = buildSearchBody("oak", 20, {
       filters: { color: ["white"], category: ["sofas"] },
     });
-    // category is a cross-cutting bool.filter clause...
+    // category is a cross-cutting bool.filter clause, alongside the graduated
+    // multi_match (with prefix_length) and the phrase-boost should clause.
     expect(body.query).toEqual({
       bool: {
         must: [
@@ -82,9 +90,11 @@ describe("buildSearchBody facets", () => {
               type: "best_fields",
               fields: ["name^3", "product_class^2", "description"],
               fuzziness: "AUTO",
+              prefix_length: 2,
             },
           },
         ],
+        should: [{ match_phrase: { name: { query: "oak", slop: 2, boost: 4 } } }],
         filter: [{ terms: { category: ["sofas"] } }],
       },
     });

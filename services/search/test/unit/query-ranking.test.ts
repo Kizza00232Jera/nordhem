@@ -6,13 +6,13 @@ import { buildSearchBody, DEFAULT_RANKING } from "../../src/search/query.ts";
 // step-3 query byte-for-byte (covered by query.test.ts); here we pin that a
 // TUNED config emits the extra DSL the tuning step adds.
 describe("RankingConfig drives the scoring query", () => {
-  it("default ranking carries the step-3 boosts and AUTO fuzziness", () => {
+  it("default ranking is the graduated step-7 config (prefix_length 2 + phrase boost)", () => {
     expect(DEFAULT_RANKING).toMatchObject({
       fields: { name: 3, productClass: 2, description: 1 },
       fuzziness: "AUTO",
-      fuzzyPrefixLength: 0,
+      fuzzyPrefixLength: 2,
       minimumShouldMatch: undefined,
-      phraseBoost: 0,
+      phraseBoost: 4,
       popularityWeight: 0,
     });
   });
@@ -55,9 +55,15 @@ describe("RankingConfig drives the scoring query", () => {
     });
   });
 
-  it("a tuned config without fuzziness omits the fuzziness field", () => {
+  it("a config without fuzziness, phrase boost or popularity is a bare multi_match", () => {
     const body = buildSearchBody("oak bed", 20, {
-      ranking: { ...DEFAULT_RANKING, fuzziness: undefined },
+      ranking: {
+        fields: { name: 3, productClass: 2, description: 1 },
+        fuzziness: undefined,
+        fuzzyPrefixLength: 0,
+        phraseBoost: 0,
+        popularityWeight: 0,
+      },
     });
     expect(body.query).toEqual({
       multi_match: {

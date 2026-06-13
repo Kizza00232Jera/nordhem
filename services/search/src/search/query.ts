@@ -131,13 +131,21 @@ export interface RankingConfig {
   popularityWeight: number;
 }
 
-/** The step-3 query as a config: the behaviour-preserving storefront default. */
+/**
+ * The graduated storefront ranking (Step 7). Tuned over the 480 judged queries
+ * and confirmed on the held-out test split: a fuzziness prefix_length of 2 so
+ * "light" can no longer fuzzy-match "right", and a phrase boost so the typed
+ * words appearing together in the name win over a single repeated term. Lifts
+ * full-set nDCG@10 from 0.6532 to ~0.6629 and improves MRR and recall.
+ * minimum_should_match was rejected (it cratered recall); popularity did not
+ * help. The lab can still try other configs against this default.
+ */
 export const DEFAULT_RANKING: RankingConfig = {
   fields: { name: 3, productClass: 2, description: 1 },
   fuzziness: "AUTO",
-  fuzzyPrefixLength: 0,
+  fuzzyPrefixLength: 2,
   minimumShouldMatch: undefined,
-  phraseBoost: 0,
+  phraseBoost: 4,
   popularityWeight: 0,
 };
 
