@@ -118,6 +118,28 @@ export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps):
     },
   );
 
+  // _explain visualizer: why did this product score what it scored for this
+  // query? Returns Elasticsearch's score-breakdown tree for one (query, doc)
+  // pair, computed with the production ranking, so the studio can read it.
+  app.get<{ Querystring: { q?: string; id?: string; scope?: string } }>(
+    "/explain",
+    async (req, reply) => {
+      const query = req.query.q?.trim();
+      const id = req.query.id?.trim();
+      if (!query || !id) {
+        return reply.code(400).send({ error: "q and id are required" });
+      }
+      const target = req.query.scope === "shop" ? shopIndex : index;
+      const body = buildSearchBody(query, 1, {});
+      try {
+        const res = await es.explain({ index: target, id, query: body.query });
+        return { matched: res.matched, explanation: res.explanation };
+      } catch {
+        return reply.code(404).send({ error: "no such document in this index" });
+      }
+    },
+  );
+
   // Relevance-lab tuning: score a candidate ranking config against the judged
   // queries on demand, so the studio sliders can re-eval. Defaults to a sample
   // of the train split for a snappy loop; the run-eval CLI owns full official
