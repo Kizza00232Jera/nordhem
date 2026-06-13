@@ -42,6 +42,20 @@ describe("buildSearchBody", () => {
   });
 });
 
+describe("buildSearchBody facets", () => {
+  // Step 4: when the shop scope asks for facets, the body grows a terms
+  // aggregation over the keyword `category` field. Aggregation DSL written
+  // from the ES terms-aggregation docs. size 20 comfortably covers the 8
+  // shop categories. Facets are opt-in so the benchmark scope (which has no
+  // `category` field) and the no-facet callers stay byte-for-byte unchanged.
+  it("adds a category terms aggregation when facets are requested", () => {
+    const body = buildSearchBody("oak", 20, { facets: true });
+    expect(body.aggregations).toEqual({
+      categories: { terms: { field: "category", size: 20 } },
+    });
+  });
+});
+
 describe("buildAutocompleteBody", () => {
   // Expected DSL from the ES search_as_you_type docs: bool_prefix over
   // the sayt field and its generated 2/3-gram companions.

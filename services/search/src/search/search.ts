@@ -1,5 +1,5 @@
-import type { Client } from "@elastic/elasticsearch";
-import type { SearchHit, SearchResponse } from "@nordhem/shared";
+import type { Client, estypes } from "@elastic/elasticsearch";
+import type { FacetBucket, SearchFacets, SearchHit, SearchResponse } from "@nordhem/shared";
 import type { ProductDocument, ShopDocument } from "../es/indexer.ts";
 import { buildSearchBody } from "./query.ts";
 
@@ -7,15 +7,32 @@ const DEFAULT_SIZE = 20;
 
 type AnyProductDocument = ProductDocument & Partial<ShopDocument>;
 
+export interface SearchOptions {
+  size?: number;
+  /** Shop scope only: compute and return facet counts (D7). */
+  facets?: boolean;
+}
+
+/** Read a terms aggregation's buckets into the contract's value/count pairs. */
+function termsBuckets(
+  agg: estypes.AggregationsAggregate | undefined,
+): FacetBucket[] {
+  const buckets = (agg as estypes.AggregationsStringTermsAggregate | undefined)
+    ?.buckets;
+  if (!Array.isArray(buckets)) return [];
+  return buckets.map((b) => ({ value: String(b.key), count: b.doc_count }));
+}
+
 export async function searchProducts(
   es: Client,
   index: string,
   query: string,
-  size = DEFAULT_SIZE,
+  opts: SearchOptions = {},
 ): Promise<SearchResponse> {
+  const size = opts.size ?? DEFAULT_SIZE;
   const res = await es.search<AnyProductDocument>({
     index,
-    ...buildSearchBody(query, size),
+    ...buildSearchBody(query, size, { facets: opts.facets }),
   });
 
   const total =
@@ -31,10 +48,15 @@ export async function searchProducts(
     : [];
   const suggestion = dymOptions[0]?.text;
 
+  const facets: SearchFacets | undefined = opts.facets
+    ? { categories: termsBuckets(res.aggregations?.["categories"]) }
+    : undefined;
+
   return {
     query,
     mode: "full",
     ...(suggestion !== undefined && { suggestion }),
+    ...(facets !== undefined && { facets }),
     total,
     tookMs: res.took,
     hits: res.hits.hits.map((hit): SearchHit => {

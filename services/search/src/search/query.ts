@@ -1,15 +1,29 @@
 import type { estypes } from "@elastic/elasticsearch";
 
+export interface SearchBodyOptions {
+  /**
+   * Shop scope only: attach the facet aggregations (terms over `category`,
+   * etc.). Opt-in so the benchmark index — which has no `category` field and
+   * needs no facets (D7) — and every existing caller stay unchanged.
+   */
+  facets?: boolean;
+}
+
 /**
  * The step-3 query: best_fields multi_match with field boosts — a match in
  * the product name outweighs one in the class, which outweighs one in the
  * description. best_fields over cross_fields because product names are
  * short self-contained phrases (the best single field should win) and
  * because cross_fields cannot combine with fuzziness.
+ *
+ * Step 4 adds opt-in facet aggregations: counts per category value computed
+ * over the query's matching documents, the numbers the storefront renders
+ * beside each filter option.
  */
 export function buildSearchBody(
   query: string,
   size: number,
+  opts: SearchBodyOptions = {},
 ): estypes.SearchRequest {
   return {
     query: {
@@ -46,6 +60,13 @@ export function buildSearchBody(
         },
       },
     },
+    // Facet counts ride along on the same request: one round trip returns
+    // hits, highlights, did-you-mean, and the aggregation buckets together.
+    ...(opts.facets && {
+      aggregations: {
+        categories: { terms: { field: "category", size: 20 } },
+      },
+    }),
     size,
   };
 }

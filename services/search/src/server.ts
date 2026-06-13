@@ -28,7 +28,11 @@ export function buildApp({ es, index, shopIndex, logger = false }: AppDeps): Fas
       if (scope !== "all" && scope !== "shop") {
         return reply.code(400).send({ error: 'scope must be "all" or "shop"' });
       }
-      return searchProducts(es, scope === "shop" ? shopIndex : index, query);
+      // Facets are a shop-scope feature: only the curated index has the
+      // `category` field, and the benchmark scope needs no filtering UI (D7).
+      return searchProducts(es, scope === "shop" ? shopIndex : index, query, {
+        facets: scope === "shop",
+      });
     },
   );
 
