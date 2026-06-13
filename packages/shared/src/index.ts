@@ -29,6 +29,40 @@ export const SearchHitSchema = z.object({
   imageThumbUrl: z.string().nullable().optional(),
 });
 
+/**
+ * One facet value plus its live result count — the number rendered beside
+ * each filter option, computed by an Elasticsearch terms aggregation over
+ * the current result set (the count JYSK shows: "White 19").
+ */
+export const FacetBucketSchema = z.object({
+  value: z.string(),
+  count: z.number().int().nonnegative(),
+});
+
+/**
+ * Aggregated facet buckets for the shop scope. Each facet grows in as its
+ * slice lands; absent entirely on the benchmark scope and the lite-mode
+ * fallback, so the whole block is optional (never null — D35).
+ */
+/**
+ * A price band with its count. `from`/`to` are the cents bounds (either may
+ * be absent for the open-ended first/last band); `key` is the stable bucket
+ * id the UI maps to a label and to the priceMin/priceMax filter.
+ */
+export const PriceBucketSchema = z.object({
+  key: z.string(),
+  from: z.number().int().optional(),
+  to: z.number().int().optional(),
+  count: z.number().int().nonnegative(),
+});
+
+export const SearchFacetsSchema = z.object({
+  categories: z.array(FacetBucketSchema),
+  colors: z.array(FacetBucketSchema),
+  materials: z.array(FacetBucketSchema),
+  prices: z.array(PriceBucketSchema),
+});
+
 export const SearchResponseSchema = z.object({
   query: z.string(),
   mode: z.enum(["full", "fallback"]),
@@ -38,7 +72,13 @@ export const SearchResponseSchema = z.object({
   // "Did you mean" — present only when the engine has a better-scoring
   // rewrite of the query (full mode; the lite fallback never suggests).
   suggestion: z.string().optional(),
+  // Facet counts for the shop scope; absent on benchmark scope / fallback.
+  facets: SearchFacetsSchema.optional(),
 });
+
+export type FacetBucket = z.infer<typeof FacetBucketSchema>;
+export type PriceBucket = z.infer<typeof PriceBucketSchema>;
+export type SearchFacets = z.infer<typeof SearchFacetsSchema>;
 
 export type SearchHit = z.infer<typeof SearchHitSchema>;
 export type SearchResponse = z.infer<typeof SearchResponseSchema>;

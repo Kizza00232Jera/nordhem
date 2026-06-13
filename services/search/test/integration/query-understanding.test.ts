@@ -55,6 +55,8 @@ const SHOP_FIXTURES: ShopDocument[] = [
     category: "sofas",
     price_cents: 49999,
     image_thumb_url: "https://images.unsplash.com/photo-velvet?w=400",
+    color: "green",
+    material: "velvet",
   },
   {
     product_id: 3,
@@ -65,6 +67,8 @@ const SHOP_FIXTURES: ShopDocument[] = [
     category: "sofas",
     price_cents: 89999,
     image_thumb_url: null,
+    color: "beige",
+    material: "fabric",
   },
 ];
 

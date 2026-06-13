@@ -46,6 +46,10 @@ export interface ShopDocument {
   category: string;
   price_cents: number;
   image_thumb_url: string | null;
+  // Facet attributes derived from WANDS features (null when the product has
+  // no recorded value — it is then simply absent from that facet).
+  color: string | null;
+  material: string | null;
 }
 
 /**

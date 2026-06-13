@@ -62,6 +62,43 @@ describe("SearchResponse contract", () => {
     ).toThrowError();
   });
 
+  it("carries category facet buckets with counts when present", () => {
+    // Step 4: faceted filtering. The response gains an optional `facets`
+    // block whose buckets each pair a value with the live result count for
+    // it — the numbers JYSK shows next to every filter value, computed by
+    // an Elasticsearch terms aggregation. Optional because the benchmark
+    // scope and the lite-mode fallback produce no facets (D35 honesty).
+    const payload = {
+      ...fullModePayload,
+      facets: {
+        categories: [
+          { value: "sofas", count: 2 },
+          { value: "beds", count: 1 },
+        ],
+        colors: [{ value: "white", count: 2 }],
+        materials: [{ value: "velvet", count: 1 }],
+        prices: [
+          { key: "under-500", to: 50000, count: 0 },
+          { key: "500-1000", from: 50000, to: 100000, count: 2 },
+        ],
+      },
+    };
+
+    const parsed = SearchResponseSchema.parse(payload);
+    expect(parsed.facets?.categories).toEqual([
+      { value: "sofas", count: 2 },
+      { value: "beds", count: 1 },
+    ]);
+    expect(parsed.facets?.colors).toEqual([{ value: "white", count: 2 }]);
+    expect(parsed.facets?.materials).toEqual([{ value: "velvet", count: 1 }]);
+    expect(parsed.facets?.prices?.[1]).toEqual({
+      key: "500-1000",
+      from: 50000,
+      to: 100000,
+      count: 2,
+    });
+  });
+
   it("roundtrips shop-index hits carrying storefront card fields", () => {
     // Shop-scope hits add what a product card needs; the fields are
     // optional because benchmark-index hits don't have them.

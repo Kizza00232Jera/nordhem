@@ -109,5 +109,9 @@ export const SHOP_MAPPINGS: estypes.MappingTypeMapping = {
     category: { type: "keyword" },
     price_cents: { type: "integer" },
     image_thumb_url: { type: "keyword", index: false },
+    // Facet fields: exact keyword values (no analysis), aggregated and
+    // filtered like `category`. Derived from WANDS features at index time.
+    color: { type: "keyword" },
+    material: { type: "keyword" },
   },
 };

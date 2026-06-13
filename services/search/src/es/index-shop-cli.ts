@@ -5,6 +5,7 @@ import {
   productsRaw,
   shopProducts,
 } from "@nordhem/db";
+import { extractColor, extractMaterial } from "../wands/features.ts";
 import { createEsClient } from "./client.ts";
 import { indexShopDocuments } from "./indexer.ts";
 
@@ -21,6 +22,7 @@ try {
       name: productsRaw.name,
       product_class: productsRaw.productClass,
       description: productsRaw.description,
+      features: productsRaw.features,
       slug: shopProducts.slug,
       category: shopProducts.category,
       price_cents: shopProducts.priceCents,
@@ -32,7 +34,13 @@ try {
 
   console.log(`read ${rows.length} shop products from postgres`);
   const es = createEsClient(esUrl);
-  const indexed = await indexShopDocuments(es, index, rows);
+  // Derive the colour/material facet values from the WANDS features blob.
+  const docs = rows.map(({ features, ...row }) => ({
+    ...row,
+    color: extractColor(features),
+    material: extractMaterial(features),
+  }));
+  const indexed = await indexShopDocuments(es, index, docs);
   console.log(`indexed ${indexed} products into "${index}"`);
 } finally {
   await close();
