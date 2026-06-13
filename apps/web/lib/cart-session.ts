@@ -2,10 +2,11 @@ import { and, cart, eq, isNull } from "@nordhem/db";
 import { cookies } from "next/headers";
 import { createCart, getOrCreateUserCart } from "./cart-repo";
 import { db } from "./db";
+import { CART_COOKIE } from "./guest-cart-merge";
 import { getCurrentUser } from "./session";
 
-/** Guest carts are found by this cookie; logged-in carts by the user id (D43). */
-export const CART_COOKIE = "nordhem_cart_id";
+/** Re-exported so existing imports keep working; defined in guest-cart-merge. */
+export { CART_COOKIE };
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
 
 /**

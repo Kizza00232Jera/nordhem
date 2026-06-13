@@ -29,3 +29,6 @@ Thumbs.db
 /apps/web/test-results/
 /apps/web/playwright-report/
 /apps/web/.playwright/
+
+# playwright mcp artifacts
+.playwright-mcp/
