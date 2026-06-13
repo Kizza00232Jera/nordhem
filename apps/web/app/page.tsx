@@ -3,15 +3,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { ProductCard } from "./components/product-card";
 import { categoryShowcase, featuredProducts } from "../lib/catalog";
+import { currentUserFavoriteSet } from "../lib/favorite-set";
 
 // The home page reads live catalog data from Postgres; without this it
 // would prerender at build time (and CI has no database).
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [showcase, featured] = await Promise.all([
+  const [showcase, featured, favorites] = await Promise.all([
     categoryShowcase(),
     featuredProducts(8),
+    currentUserFavoriteSet(),
   ]);
   const hero = showcase.get("sofas") ?? featured[0];
 
@@ -102,7 +104,7 @@ export default async function Home() {
         <ul className="mt-8 grid grid-cols-2 gap-5 lg:grid-cols-4">
           {featured.map((p) => (
             <li key={p.productId}>
-              <ProductCard product={p} />
+              <ProductCard product={p} favorited={favorites.has(p.productId)} />
             </li>
           ))}
         </ul>

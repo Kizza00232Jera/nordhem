@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductCard } from "../../components/product-card";
 import { productsByCategory } from "../../../lib/catalog";
+import { currentUserFavoriteSet } from "../../../lib/favorite-set";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -19,6 +20,7 @@ export default async function CategoryPage({ params }: Props) {
   if (!category) notFound();
 
   const products = await productsByCategory(slug);
+  const favorites = await currentUserFavoriteSet();
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 md:py-14">
@@ -34,7 +36,7 @@ export default async function CategoryPage({ params }: Props) {
       <ul className="mt-10 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
         {products.map((p) => (
           <li key={p.productId}>
-            <ProductCard product={p} />
+            <ProductCard product={p} favorited={favorites.has(p.productId)} />
           </li>
         ))}
       </ul>

@@ -4,8 +4,11 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AddToCartButton } from "../../components/add-to-cart-button";
+import { FavoriteButton } from "../../components/favorite-button";
 import { ProductCard } from "../../components/product-card";
 import { productBySlug, productsByCategory } from "../../../lib/catalog";
+import { currentUserFavoriteSet } from "../../../lib/favorite-set";
 import { formatPrice } from "../../../lib/format";
 
 interface Props {
@@ -44,6 +47,9 @@ export default async function ProductPage({ params }: Props) {
     .filter((p) => p.productId !== product.productId)
     .slice(0, 4);
   const specs = parseFeatures(product.features);
+
+  const favorites = await currentUserFavoriteSet();
+  const favorited = favorites.has(product.productId);
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 md:py-14">
@@ -96,17 +102,24 @@ export default async function ProductPage({ params }: Props) {
             In stock — ships in 2-4 days
           </p>
 
-          <button
-            type="button"
-            disabled
-            aria-describedby="cart-note"
-            className="mt-6 w-full cursor-not-allowed rounded-xs bg-pine px-6 py-3.5 text-[15px] font-semibold text-white opacity-50"
-          >
-            Add to cart
-          </button>
-          <p id="cart-note" className="mt-2 text-[13px] text-ink-muted">
-            Cart and checkout open with customer accounts (build step 5).
-          </p>
+          <div className="mt-6 flex items-stretch gap-3">
+            <AddToCartButton
+              className="flex-1"
+              line={{
+                productId: product.productId,
+                name: product.name,
+                slug: product.slug,
+                imageThumbUrl: product.imageThumbUrl,
+                unitPriceCents: product.priceCents,
+                quantity: 1,
+              }}
+            />
+            <FavoriteButton
+              productId={product.productId}
+              initialFavorited={favorited}
+              className="size-[52px] shrink-0 rounded-xs border border-line hover:border-ink"
+            />
+          </div>
 
           {product.description && (
             <section className="mt-8 border-t border-line pt-6">
@@ -155,7 +168,7 @@ export default async function ProductPage({ params }: Props) {
           <ul className="mt-8 grid grid-cols-2 gap-5 lg:grid-cols-4">
             {similar.map((p) => (
               <li key={p.productId}>
-                <ProductCard product={p} />
+                <ProductCard product={p} favorited={favorites.has(p.productId)} />
               </li>
             ))}
           </ul>

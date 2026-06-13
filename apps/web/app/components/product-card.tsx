@@ -3,13 +3,24 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ProductCard as ProductCardData } from "../../lib/catalog";
 import { formatPrice } from "../../lib/format";
+import { AddToCartButton } from "./add-to-cart-button";
+import { FavoriteButton } from "./favorite-button";
 
-export function ProductCard({ product }: { product: ProductCardData }) {
+/**
+ * Product card. The title Link is a "stretched link" (its ::after covers the
+ * whole card) so the entire card navigates, while the favorite heart and
+ * quick-add sit above it (z-10) as their own click targets — exactly the
+ * separate-targets rule from nordhem-design.
+ */
+export function ProductCard({
+  product,
+  favorited = false,
+}: {
+  product: ProductCardData;
+  favorited?: boolean;
+}) {
   return (
-    <Link
-      href={`/product/${product.slug}`}
-      className="group block overflow-hidden rounded-md bg-card shadow-lift transition-shadow duration-200 hover:shadow-float"
-    >
+    <article className="group relative overflow-hidden rounded-md bg-card shadow-lift transition-shadow duration-200 hover:shadow-float">
       <div className="relative aspect-[4/5] overflow-hidden bg-linen">
         {product.imageUrl ? (
           <Image
@@ -24,10 +35,34 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             photo pending
           </div>
         )}
+
+        <FavoriteButton
+          productId={product.productId}
+          initialFavorited={favorited}
+          className="absolute right-2 top-2 z-10 size-9 rounded-full bg-card/90 shadow-lift backdrop-blur-sm"
+        />
+        <AddToCartButton
+          compact
+          className="absolute bottom-2 right-2 z-10 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
+          line={{
+            productId: product.productId,
+            name: product.name,
+            slug: product.slug,
+            imageThumbUrl: product.imageThumbUrl,
+            unitPriceCents: product.priceCents,
+            quantity: 1,
+          }}
+        />
       </div>
+
       <div className="px-4 pb-4 pt-3">
         <h3 className="line-clamp-2 min-h-[2.6em] text-[15px] leading-snug">
-          {product.name}
+          <Link
+            href={`/product/${product.slug}`}
+            className="after:absolute after:inset-0 after:content-['']"
+          >
+            {product.name}
+          </Link>
         </h3>
         <div className="mt-1.5 flex items-baseline justify-between gap-2">
           <p className="tnum text-[15px] font-semibold">
@@ -43,6 +78,6 @@ export function ProductCard({ product }: { product: ProductCardData }) {
           ) : null}
         </div>
       </div>
-    </Link>
+    </article>
   );
 }
