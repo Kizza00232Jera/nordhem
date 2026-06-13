@@ -27,7 +27,7 @@ Explicit mappings (`dynamic: strict`) with custom english chain (possessive → 
 
 ### ✅ Step 4 — Facets & filters (done 2026-06-13, PR #5, v0.4)
 JYSK-modelled (Playwright-researched) category-scoped facets with live ES aggregation counts. Universal spine: category (terms), colour + material (terms, extracted from WANDS `product_features` via `wands/features.ts`), price (range over fixed bands). Query vs filter context: multi_match in `bool.must`; category/price cross-cutting in `bool.filter`; colour/material multi-select in `post_filter` (keeps own counts — "tick white, still see black"). Sort (relevance/price asc/desc) + pagination. Facet sidebar UI with counts, chips, clear-all, URL-synced via pure helpers (`lib/facet-url`). Verified live (800-product shop) + 27 ES integration tests. D38–D41.
-*Teaching: aggregations; post_filter for multi-select facets; why filters cache and queries score.* → teaching pending (run teach-step)
+*Teaching: aggregations; post_filter for multi-select facets; why filters cache and queries score.* → `teaching/step-04-facets-filters.html`
 
 ### ⬜ Step 5 — The shop becomes a shop
 Better Auth (email+password + Google). Cart (guest cart + merge-on-login), demo checkout (address form, fake payment), orders in Postgres, order history, favorites (hearts + favorites page — mirrors jysk.dk's "Favoritter").
