@@ -16,7 +16,23 @@ export default async function RelevanceLabPage() {
       <nav className="text-[13px] text-ink-muted">
         <Link href="/studio" className="hover:text-ink">Studio</Link> / Relevance lab
       </nav>
-      <h1 className="mt-2 font-display text-4xl font-light">Relevance lab</h1>
+      <div className="mt-2 flex items-center justify-between gap-4">
+        <h1 className="font-display text-4xl font-light">Relevance lab</h1>
+        <div className="flex shrink-0 gap-2">
+          <Link
+            href="/studio/relevance/explain"
+            className="rounded-xs border border-line px-4 py-2 text-[14px] font-medium hover:border-ink"
+          >
+            Explain a score
+          </Link>
+          <Link
+            href="/studio/relevance/tune"
+            className="rounded-xs bg-pine px-4 py-2 text-[14px] font-semibold text-white hover:bg-pine-deep"
+          >
+            Tune ranking
+          </Link>
+        </div>
+      </div>
       <p className="mt-2 max-w-2xl text-[14px] text-ink-muted">
         Each run scores the search config against all 480 WANDS queries using
         233k human judgments. nDCG@10 measures ranking quality, MRR how high the

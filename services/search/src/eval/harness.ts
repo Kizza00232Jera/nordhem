@@ -28,6 +28,25 @@ export interface EvalResult {
 
 const DEFAULT_NDCG_K = 10;
 const DEFAULT_RECALL_K = 100;
+const DEFAULT_CONCURRENCY = 12;
+const TEST_MODULO = 5; // every 5th query id is held out for the test set
+
+/**
+ * Deterministic train/test split of the query set: tune on train, confirm on
+ * test, so we do not overfit the judgments. Holding out by query id (id %
+ * TEST_MODULO === 0) keeps the split stable across runs and input orders.
+ */
+export function trainTestSplit(queryIds: number[]): {
+  train: number[];
+  test: number[];
+} {
+  const train: number[] = [];
+  const test: number[] = [];
+  for (const id of queryIds) {
+    (id % TEST_MODULO === 0 ? test : train).push(id);
+  }
+  return { train, test };
+}
 
 /**
  * Score one query: line the ranked retrieved ids up against the judgments
@@ -64,14 +83,24 @@ export async function runEval(params: {
   judgmentsByQueryId: Map<number, Judgment[]>;
   search: (text: string) => Promise<number[]>;
   config?: EvalConfig;
+  /** How many searches to run at once; a full set over real ES is I/O bound. */
+  concurrency?: number;
 }): Promise<EvalResult> {
   const { queries, judgmentsByQueryId, search, config = {} } = params;
-  const perQuery: QueryScore[] = [];
-  for (const q of queries) {
+  const concurrency = Math.max(1, params.concurrency ?? DEFAULT_CONCURRENCY);
+
+  // Score one query (pure once the search resolves).
+  const scoreOne = async (q: { queryId: number; query: string }): Promise<QueryScore> => {
     const judgments = judgmentsByQueryId.get(q.queryId) ?? [];
     const ids = await search(q.query);
-    const s = scoreQuery(ids, judgments, config);
-    perQuery.push({ queryId: q.queryId, query: q.query, ...s });
+    return { queryId: q.queryId, query: q.query, ...scoreQuery(ids, judgments, config) };
+  };
+
+  // Bounded concurrency, results kept in the input query order.
+  const perQuery: QueryScore[] = [];
+  for (let i = 0; i < queries.length; i += concurrency) {
+    const chunk = queries.slice(i, i + concurrency);
+    perQuery.push(...(await Promise.all(chunk.map(scoreOne))));
   }
   const n = perQuery.length;
   const mean = (sel: (x: QueryScore) => number) =>
