@@ -1,6 +1,6 @@
 # NORDHEM — Build Plan
 
-> **STATUS (2026-06-13): Step 3 built on `step/03-query-understanding` (pushed, PR pending). Next: open/merge PR #3, then Step 4 — Facets & filters.**
+> **STATUS (2026-06-13): Step 3 merged (PR #4, squashed, tagged `v0.3`). Interlude 3.5 (Query DSL lesson) built. Next: Step 4 — Facets & filters.**
 > Repo public at github.com/Kizza00232Jera/nordhem. Local stack: `docker compose up -d`, then `pnpm -F @nordhem/search dev` + `pnpm -F @nordhem/web dev`. Tutor for lessons: `pnpm tutor`.
 
 Every step ends with the wrap-step ritual: working demo → `teaching/step-XX-*.html` with quiz + interviewer Q&A → blog cards proposed → `docs/interview-bank.md` updated → `docs/blog-moments.md` harvested → this file's status updated → commit. Steps are sized roughly an evening-to-weekend each.
@@ -22,8 +22,8 @@ pnpm monorepo (`apps/web`, `services/search`, `packages/shared`, `tools`). Docke
 Explicit mappings (`dynamic: strict`) with custom english chain (possessive → lowercase → stop → stemmer); `name` multi-fields keyword/trigram/sayt. Boosted `best_fields` (name^3, product_class^2) + fuzziness AUTO. Query-time synonyms (`synonyms.txt` → synonym_graph AFTER the stemmer, search-analyzer only — no reindex on rule edits). Did-you-mean phrase suggester over unstemmed shingles (optional `suggestion` in contract). `/autocomplete` (search_as_you_type + bool_prefix) → Next `/api/autocomplete` proxy (800ms cap, degrades silently). ARIA combobox in header (debounce 200ms + AbortController, arrows/enter/escape, URL-synced) with new apps/web Vitest+RTL rig. Highlighting rendered by `<mark>`-splitting, never innerHTML. Verified on real data: "vellvet"→22 hits highlighted, "couch"→122 sofas, "platfrom bed"→"platform bed", "vel"→8 suggestions. D33–D37.
 *Teaching: the analysis chain end to end; BM25 intro; edit distance; multi_match types. Densest interview zone.* → `teaching/step-03-query-understanding.html`
 
-### ⬜ Interlude 3.5 — Query DSL compendium (teaching only — BUILD BEFORE STEP 4 STARTS)
-**One-shot reminder, requested by Antonio 2026-06-13 (delete this entry once the lesson exists).** When he says "start step 4": FIRST prompt him to build `teaching/step-03.5-query-dsl.html` (standard teach-step format: explanations, NORDHEM-flavored code examples, write-code dojo prompts, quiz, tutor). Scope is exactly the query types his tutor listed for him, one section each: `match` (one-field workhorse), `multi_match` (several fields — what we use), `term` (exact, no analyzer — status/category ids), `bool` (the combiner: must/should/must_not, the step-4 big one), `range` (numbers/dates, e.g. price 100–500), `match_all`. Plus the framing rule: `query` holds exactly one type, and the type describes HOW to look. Build it, verify dojo solutions/starters, add the hub card, then delete this entry.
+### ✅ Interlude 3.5 — Query DSL compendium (teaching only, built 2026-06-13)
+`teaching/step-03.5-query-dsl.html`: one section each for `match`, `multi_match`, `term`, `bool` (must/should/filter/must_not + query vs filter context), `range`, `match_all`, plus the framing rule (`query` holds exactly one type describing HOW to look). NORDHEM-flavored DSL examples, three verified dojo exercises (envelope/match, fix-the-bool, assemble the storefront bool), 9-question quiz, interviewer Q&A, tutor. Hub card added.
 
 ### ⬜ Step 4 — Facets & filters
 Aggregations: category terms, price ranges/histogram, color/material (extracted from WANDS features). Filter UI with counts, sorting, pagination. Filter context vs query context (caching!).
