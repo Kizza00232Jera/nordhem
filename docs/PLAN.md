@@ -1,6 +1,6 @@
 # NORDHEM — Build Plan
 
-> **STATUS (2026-06-13): Step 4 merged (PR #5, squashed, tagged `v0.4`). Next: Step 5 — The shop becomes a shop (auth, cart, checkout, orders, favorites).**
+> **STATUS (2026-06-13): Step 5 IN PROGRESS on branch `step/05-shop-becomes-a-shop`. Cart math committed (cartTotals + mergeCarts, 10 unit tests green). NEXT: install Better Auth + drizzle-kit, generate the auth schema. Full resume checklist and TDD slice sequence are in the Step 5 entry below; read it first.**
 > Repo public at github.com/Kizza00232Jera/nordhem. Local stack: `docker compose up -d`, then `pnpm -F @nordhem/search dev` + `pnpm -F @nordhem/web dev`. Tutor for lessons: `pnpm tutor`.
 
 Every step ends with the wrap-step ritual: working demo → `teaching/step-XX-*.html` with quiz + interviewer Q&A → blog cards proposed → `docs/interview-bank.md` updated → `docs/blog-moments.md` harvested → this file's status updated → commit. Steps are sized roughly an evening-to-weekend each.
@@ -29,8 +29,39 @@ Explicit mappings (`dynamic: strict`) with custom english chain (possessive → 
 JYSK-modelled (Playwright-researched) category-scoped facets with live ES aggregation counts. Universal spine: category (terms), colour + material (terms, extracted from WANDS `product_features` via `wands/features.ts`), price (range over fixed bands). Query vs filter context: multi_match in `bool.must`; category/price cross-cutting in `bool.filter`; colour/material multi-select in `post_filter` (keeps own counts — "tick white, still see black"). Sort (relevance/price asc/desc) + pagination. Facet sidebar UI with counts, chips, clear-all, URL-synced via pure helpers (`lib/facet-url`). Verified live (800-product shop) + 27 ES integration tests. D38–D41.
 *Teaching: aggregations; post_filter for multi-select facets; why filters cache and queries score.* → `teaching/step-04-facets-filters.html`
 
-### ⬜ Step 5 — The shop becomes a shop
-Better Auth (email+password + Google). Cart (guest cart + merge-on-login), demo checkout (address form, fake payment), orders in Postgres, order history, favorites (hearts + favorites page — mirrors jysk.dk's "Favoritter").
+### 🔨 Step 5 — The shop becomes a shop (IN PROGRESS, branch `step/05-shop-becomes-a-shop`)
+Better Auth (email+password + Google), guest cart with merge-on-login, demo checkout (address + fake payment), orders in Postgres, order history, favorites (hearts + favorites page, the jysk.dk "Favoritter" model).
+
+**RESUME HERE (started 2026-06-13):**
+
+DONE so far:
+- Branch cut off `main`. Cart math helpers in `apps/web/lib/` (`cart-totals.ts`, `cart-merge.ts`) with 10 green unit tests (`apps/web/test/cart-totals.test.ts`, `cart-merge.test.ts`). Committed.
+
+DECISIONS adopted from the plan (record as D42 to D44 at wrap):
+- Guest cart is a DB `cart` row keyed by a `cart_id` cookie (not cookie-only), so merge-on-login is a clean DB operation and the cart survives a device switch.
+- Favorites require login; a guest heart click prompts sign-in (no guest favorites table).
+- Order numbers are human-readable `NDH-2026-000123` (uuid internal pk plus a sequence-backed `orderNumber`).
+- drizzle-kit migrations for the real DB, but keep `ensureSchema` synced for the test/dev bootstrap (every integration test uses it).
+- Email+password always works; the Google button is env-gated (hidden when `GOOGLE_CLIENT_ID` is absent), so CI and a fresh clone never need secrets.
+- Orders snapshot name+slug+image+unit price at checkout; order history must never re-derive price from live `shop_products`.
+
+NEXT SLICES (TDD, RED witnessed in chat, real Postgres via `@testcontainers/postgresql` for DB behaviour, pure units for logic; copy the PG test pattern from `tools/test/integration/write-shop.test.ts`):
+1. Infra: add `drizzle-kit` + `drizzle.config.ts` + `packages/db/migrations/`; add `@testcontainers/postgresql` + `testcontainers` devDeps to `apps/web`; install `better-auth` in `apps/web`.
+2. Auth schema: configure `apps/web/lib/auth.ts` (Better Auth, Drizzle adapter on the `lib/db.ts` `db()` singleton, emailAndPassword + google social provider), run the Better Auth CLI to GENERATE the `user`/`session`/`account`/`verification` tables (do NOT hand-write them, version drift), port into `packages/db/src/schema.ts` + `ensure-schema.ts`. Mount `app/api/auth/[...all]/route.ts`. Add `lib/session.ts` (getSession via `headers()`).
+3. Data model: `cart` (uuid pk, nullable `userId` -> user, timestamps, one active cart per user), `cart_items` (cartId cascade, productId -> shop_products, quantity, unique(cartId,productId) upsert, no price column), `orders` (uuid pk, unique `orderNumber`, userId, status, ship address cols, subtotal/shipping/total cents), `order_items` (orderId cascade, productId plain ref, nameSnapshot/slugSnapshot/imageUrlSnapshot/unitPriceCents/quantity), `favorites` (composite pk userId+productId, both cascade). Add to schema.ts + ensureSchema.
+4. Auth persistence (real PG): signup/login writes user + account (hashed password, not plaintext) + session; getSession returns the user. Google is NOT integration-tested (third-party external).
+5. Cart repo (real PG): addToCart upsert bumps quantity; apply mergeCarts (guest + user cart -> summed, guest row deleted).
+6. Checkout (real PG): `db.transaction` turns the cart into orders + order_items (snapshotted) and clears the cart, atomically; empty cart rejected; mutate a `shop_products` price AFTER and prove the order snapshot did not move; a forced mid-transaction error leaves no order and the cart intact.
+7. Favorites (real PG): toggleFavorite idempotent and per-user.
+8. Optimistic UI (RTL): cart drawer + favorite button, `useOptimistic` apply then rollback on a rejected Server Action.
+9. Contracts (`@nordhem/shared`): AddressSchema, CartViewSchema, OrderSummarySchema (zod, validated at the Server Action boundary).
+10. UI: `/login` + `/signup`, cart drawer + `/cart`, `/checkout` (address form with proper `autocomplete` attributes + fake-payment banner), order history + confirmation, `/favorites`; wire the currently-inert Heart and Bag icons in `apps/web/app/components/site-header.tsx` and enable the disabled Add-to-cart in `apps/web/app/product/[slug]/page.tsx`.
+11. E2e golden flow (Playwright, set it up in apps/web): search -> PDP -> add to cart -> checkout -> order in history; favorites persist across reload.
+
+NEEDS ANTONIO (only for the live Google button, not a blocker for the backend): Google Cloud Console OAuth 2.0 Client ID + secret, redirect URI `http://localhost:3000/api/auth/callback/google`, into `apps/web/.env.local` along with `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`. Email+password and every backend slice proceed without these.
+
+KEY FILES: `packages/db/src/schema.ts` + `ensure-schema.ts`; `apps/web/lib/db.ts` (the shared `db()` singleton the Better Auth adapter and repos must reuse); `apps/web/app/components/site-header.tsx` (inert heart/bag); `apps/web/app/product/[slug]/page.tsx` (disabled add-to-cart). Dev stack: `docker compose up -d` (Postgres has the full catalog; shop index already re-indexed with colour/material). Heed `apps/web/AGENTS.md`: read the bundled Next docs for route handlers, `cookies()`, `headers()`, Server Actions before writing auth/cart code.
+
 *Teaching: sessions & cookies; cart merge strategies; transactional order creation with Drizzle.*
 
 ### ⬜ Step 6 — Relevance lab: measurement
