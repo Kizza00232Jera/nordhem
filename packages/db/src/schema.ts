@@ -2,6 +2,7 @@ import {
   boolean,
   doublePrecision,
   integer,
+  jsonb,
   pgSequence,
   pgTable,
   primaryKey,
@@ -268,4 +269,36 @@ export const evalJudgments = pgTable(
     grade: integer("grade").notNull(),
   },
   (t) => [primaryKey({ columns: [t.queryId, t.productId] })],
+);
+
+/**
+ * One evaluation run: the search config scored against the whole query set,
+ * with its aggregate metrics frozen in. Runs accumulate so the studio can
+ * compare them over time (today's baseline vs tomorrow's tuned config).
+ */
+export const evalRuns = pgTable("eval_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  label: text("label").notNull(),
+  indexName: text("index_name").notNull(),
+  queryCount: integer("query_count").notNull(),
+  ndcg: doublePrecision("ndcg").notNull(),
+  mrr: doublePrecision("mrr").notNull(),
+  recall: doublePrecision("recall").notNull(),
+  config: jsonb("config").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/** Per-query scores for a run, so the studio can show best/worst queries. */
+export const evalQueryScores = pgTable(
+  "eval_query_scores",
+  {
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => evalRuns.id, { onDelete: "cascade" }),
+    queryId: integer("query_id").notNull(),
+    ndcg: doublePrecision("ndcg").notNull(),
+    rr: doublePrecision("rr").notNull(),
+    recall: doublePrecision("recall").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.runId, t.queryId] })],
 );

@@ -2,12 +2,15 @@ import { createDb, evalJudgments, evalQueries } from "@nordhem/db";
 import { createEsClient } from "../es/client.ts";
 import { buildSearchBody } from "../search/query.ts";
 import { runEval, type Judgment } from "./harness.ts";
+import { saveEvalRun } from "./store.ts";
 
 const databaseUrl =
   process.env.DATABASE_URL ?? "postgres://nordhem:nordhem@localhost:5432/nordhem";
 const esUrl = process.env.ES_URL ?? "http://localhost:9200";
 const index = process.env.SEARCH_INDEX ?? "products";
 const RETRIEVE = 100; // depth: enough for recall@100
+// A label for this run, e.g. `pnpm run-eval "bm25 + fuzzy baseline"`.
+const label = process.argv[2] ?? "baseline (bm25 + field boosts + fuzziness)";
 
 const es = createEsClient(esUrl);
 const { db, close } = createDb(databaseUrl);
@@ -39,10 +42,17 @@ try {
   const result = await runEval({ queries, judgmentsByQueryId, search });
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
 
+  const runId = await saveEvalRun(
+    db,
+    { label, indexName: index, config: { ndcgK: 10, recallK: 100, retrieve: RETRIEVE } },
+    result,
+  );
+
   const worst = [...result.perQuery].sort((a, b) => a.ndcg - b.ndcg).slice(0, 10);
   const pct = (n: number) => (n * 100).toFixed(1) + "%";
 
   console.log(`\nEvaluated ${result.queryCount} queries against "${index}" in ${seconds}s`);
+  console.log(`  saved run ${runId} ("${label}")`);
   console.log(`  nDCG@10    ${result.ndcg.toFixed(4)}`);
   console.log(`  MRR        ${result.mrr.toFixed(4)}`);
   console.log(`  recall@100 ${pct(result.recall)}`);

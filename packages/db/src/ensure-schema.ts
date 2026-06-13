@@ -178,4 +178,27 @@ export async function ensureSchema(db: Db): Promise<void> {
       PRIMARY KEY (query_id, product_id)
     )
   `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS eval_runs (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      label text NOT NULL,
+      index_name text NOT NULL,
+      query_count integer NOT NULL,
+      ndcg double precision NOT NULL,
+      mrr double precision NOT NULL,
+      recall double precision NOT NULL,
+      config jsonb NOT NULL,
+      created_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS eval_query_scores (
+      run_id uuid NOT NULL REFERENCES eval_runs(id) ON DELETE CASCADE,
+      query_id integer NOT NULL,
+      ndcg double precision NOT NULL,
+      rr double precision NOT NULL,
+      recall double precision NOT NULL,
+      PRIMARY KEY (run_id, query_id)
+    )
+  `);
 }
