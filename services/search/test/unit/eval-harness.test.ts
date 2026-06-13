@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runEval, scoreQuery } from "../../src/eval/harness.ts";
+import { runEval, scoreQuery, trainTestSplit } from "../../src/eval/harness.ts";
 
 // The harness scores each query by lining its retrieved product ids up against
 // the judgments (unjudged retrievals count as grade 0), then averages per-query
@@ -24,6 +24,17 @@ describe("scoreQuery", () => {
     expect(s.ndcg).toBe(0);
     expect(s.rr).toBe(0);
     expect(s.recall).toBe(0);
+  });
+});
+
+describe("trainTestSplit", () => {
+  // Tune on train, confirm on the held-out test set, so we do not overfit the
+  // judgments. Deterministic by query id (every 5th id is test) so the split
+  // is stable across runs regardless of input order.
+  it("holds out every 5th query id as the test set", () => {
+    const { train, test } = trainTestSplit([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(test).toEqual([0, 5, 10]);
+    expect(train).toEqual([1, 2, 3, 4, 6, 7, 8, 9]);
   });
 });
 
