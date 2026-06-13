@@ -1,4 +1,4 @@
-export { createDb, type Db } from "./client.ts";
+export { createDb, type Db, type DbOrTx, type DbTx } from "./client.ts";
 export { ensureSchema } from "./ensure-schema.ts";
 export * from "./schema.ts";
 
