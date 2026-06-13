@@ -45,11 +45,18 @@ export async function SiteHeader() {
         <div className="flex shrink-0 items-center gap-1 text-ink-muted">
           <Link
             href={user ? "/orders" : "/login"}
-            className="inline-flex size-11 items-center justify-center hover:text-ink"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xs px-2 hover:text-ink"
             title={user ? "Your account" : "Sign in"}
           >
-            <User aria-hidden className="size-5" strokeWidth={1.75} />
-            <span className="sr-only">{user ? "Your account" : "Sign in"}</span>
+            <User aria-hidden className="size-5 shrink-0" strokeWidth={1.75} />
+            {user && (
+              <span className="hidden max-w-28 truncate text-[14px] sm:inline">
+                {user.name?.split(" ")[0] ?? "Account"}
+              </span>
+            )}
+            <span className="sr-only">
+              {user ? `Signed in as ${user.name ?? user.email}` : "Sign in"}
+            </span>
           </Link>
           <Link
             href="/favorites"

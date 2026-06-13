@@ -23,7 +23,9 @@ export default async function OrdersPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-4xl font-light">Your orders</h1>
-          <p className="mt-2 text-[14px] text-ink-muted">Signed in as {user.email}</p>
+          <p className="mt-2 text-[14px] text-ink-muted">
+            Signed in as {user.name ? `${user.name} (${user.email})` : user.email}
+          </p>
         </div>
         <SignOutButton />
       </div>
