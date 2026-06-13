@@ -1,6 +1,6 @@
 # NORDHEM — Build Plan
 
-> **STATUS (2026-06-13): Step 3 merged (PR #4, squashed, tagged `v0.3`). Interlude 3.5 (Query DSL lesson) built. Next: Step 4 — Facets & filters.**
+> **STATUS (2026-06-13): Step 4 merged (PR #5, squashed, tagged `v0.4`). Next: Step 5 — The shop becomes a shop (auth, cart, checkout, orders, favorites).**
 > Repo public at github.com/Kizza00232Jera/nordhem. Local stack: `docker compose up -d`, then `pnpm -F @nordhem/search dev` + `pnpm -F @nordhem/web dev`. Tutor for lessons: `pnpm tutor`.
 
 Every step ends with the wrap-step ritual: working demo → `teaching/step-XX-*.html` with quiz + interviewer Q&A → blog cards proposed → `docs/interview-bank.md` updated → `docs/blog-moments.md` harvested → this file's status updated → commit. Steps are sized roughly an evening-to-weekend each.
@@ -25,9 +25,9 @@ Explicit mappings (`dynamic: strict`) with custom english chain (possessive → 
 ### ✅ Interlude 3.5 — Query DSL compendium (teaching only, built 2026-06-13)
 `teaching/step-03.5-query-dsl.html`: one section each for `match`, `multi_match`, `term`, `bool` (must/should/filter/must_not + query vs filter context), `range`, `match_all`, plus the framing rule (`query` holds exactly one type describing HOW to look). NORDHEM-flavored DSL examples, three verified dojo exercises (envelope/match, fix-the-bool, assemble the storefront bool), 9-question quiz, interviewer Q&A, tutor. Hub card added.
 
-### ⬜ Step 4 — Facets & filters
-Aggregations: category terms, price ranges/histogram, color/material (extracted from WANDS features). Filter UI with counts, sorting, pagination. Filter context vs query context (caching!).
-*Teaching: aggregations; post_filter for multi-select facets; why filters cache and queries score.*
+### ✅ Step 4 — Facets & filters (done 2026-06-13, PR #5, v0.4)
+JYSK-modelled (Playwright-researched) category-scoped facets with live ES aggregation counts. Universal spine: category (terms), colour + material (terms, extracted from WANDS `product_features` via `wands/features.ts`), price (range over fixed bands). Query vs filter context: multi_match in `bool.must`; category/price cross-cutting in `bool.filter`; colour/material multi-select in `post_filter` (keeps own counts — "tick white, still see black"). Sort (relevance/price asc/desc) + pagination. Facet sidebar UI with counts, chips, clear-all, URL-synced via pure helpers (`lib/facet-url`). Verified live (800-product shop) + 27 ES integration tests. D38–D41.
+*Teaching: aggregations; post_filter for multi-select facets; why filters cache and queries score.* → teaching pending (run teach-step)
 
 ### ⬜ Step 5 — The shop becomes a shop
 Better Auth (email+password + Google). Cart (guest cart + merge-on-login), demo checkout (address form, fake payment), orders in Postgres, order history, favorites (hearts + favorites page — mirrors jysk.dk's "Favoritter").
