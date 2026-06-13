@@ -149,6 +149,43 @@ export const DEFAULT_RANKING: RankingConfig = {
   popularityWeight: 0,
 };
 
+/**
+ * Build a safe RankingConfig from untrusted input (the studio tuning sliders
+ * reach the /eval endpoint as JSON). Every number is clamped into a sane range
+ * and anything missing or invalid falls back to DEFAULT_RANKING, so a bad
+ * request can never produce a broken or abusive query.
+ */
+export function coerceRankingConfig(raw: unknown): RankingConfig {
+  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const clamp = (v: unknown, def: number, min: number, max: number): number => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def;
+  };
+  const f = (o.fields && typeof o.fields === "object" ? o.fields : {}) as Record<string, unknown>;
+  const fuzzinessRaw = o.fuzziness;
+  const fuzziness =
+    fuzzinessRaw === undefined
+      ? DEFAULT_RANKING.fuzziness
+      : fuzzinessRaw === null || fuzzinessRaw === "off"
+        ? undefined
+        : (fuzzinessRaw as estypes.Fuzziness);
+  return {
+    fields: {
+      name: clamp(f.name, DEFAULT_RANKING.fields.name, 0, 20),
+      productClass: clamp(f.productClass, DEFAULT_RANKING.fields.productClass, 0, 20),
+      description: clamp(f.description, DEFAULT_RANKING.fields.description, 0, 20),
+    },
+    fuzziness,
+    fuzzyPrefixLength: clamp(o.fuzzyPrefixLength, DEFAULT_RANKING.fuzzyPrefixLength, 0, 5),
+    minimumShouldMatch:
+      typeof o.minimumShouldMatch === "string" && o.minimumShouldMatch.trim()
+        ? o.minimumShouldMatch.trim()
+        : undefined,
+    phraseBoost: clamp(o.phraseBoost, DEFAULT_RANKING.phraseBoost, 0, 50),
+    popularityWeight: clamp(o.popularityWeight, DEFAULT_RANKING.popularityWeight, 0, 10),
+  };
+}
+
 /** Field boost strings; boost 1 stays bare ("description") to match the legacy shape. */
 function fieldList(f: RankingConfig["fields"]): string[] {
   const b = (name: string, boost: number) => (boost === 1 ? name : `${name}^${boost}`);

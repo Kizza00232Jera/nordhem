@@ -1,8 +1,11 @@
 import type { Client } from "@elastic/elasticsearch";
+import type { Db } from "@nordhem/db";
 import Fastify, { type FastifyInstance } from "fastify";
+import { makeEvalDataCache } from "./eval/eval-data.ts";
+import { runEval, trainTestSplit } from "./eval/harness.ts";
 import { autocompleteProducts } from "./search/autocomplete.ts";
 import { searchProducts } from "./search/search.ts";
-import { priceBandBounds, type SortOption } from "./search/query.ts";
+import { buildSearchBody, coerceRankingConfig, priceBandBounds, type SortOption } from "./search/query.ts";
 
 const SORT_OPTIONS = ["relevance", "price_asc", "price_desc"] as const;
 
@@ -12,10 +15,12 @@ export interface AppDeps {
   index: string;
   /** The curated storefront index with card fields. */
   shopIndex: string;
+  /** Postgres, only needed for the relevance-lab /eval endpoint. */
+  db?: Db;
   logger?: boolean;
 }
 
-export function buildApp({ es, index, shopIndex, logger = false }: AppDeps): FastifyInstance {
+export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps): FastifyInstance {
   const app = Fastify({ logger });
 
   app.get("/health", async () => ({ status: "ok" }));
@@ -112,6 +117,42 @@ export function buildApp({ es, index, shopIndex, logger = false }: AppDeps): Fas
       return autocompleteProducts(es, scope === "shop" ? shopIndex : index, query);
     },
   );
+
+  // Relevance-lab tuning: score a candidate ranking config against the judged
+  // queries on demand, so the studio sliders can re-eval. Defaults to a sample
+  // of the train split for a snappy loop; the run-eval CLI owns full official
+  // runs. Reads the judged set from Postgres (cached after the first call).
+  const evalData = db ? makeEvalDataCache(db) : null;
+  app.post<{
+    Body: { config?: unknown; split?: string; size?: number };
+  }>("/eval", async (req, reply) => {
+    if (!evalData) {
+      return reply.code(503).send({ error: "eval requires a database connection" });
+    }
+    const ranking = coerceRankingConfig(req.body?.config);
+    const { queries, judgmentsByQueryId } = await evalData();
+    const { train, test } = trainTestSplit(queries.map((q) => q.queryId));
+    const which =
+      req.body?.split === "test" ? new Set(test) : req.body?.split === "all" ? null : new Set(train);
+    let pool = which ? queries.filter((q) => which.has(q.queryId)) : queries;
+    // Cap the worked set for an interactive loop (default 120, deterministic).
+    const size = Number(req.body?.size);
+    if (Number.isInteger(size) && size > 0 && size < pool.length) pool = pool.slice(0, size);
+
+    const search = async (text: string): Promise<number[]> => {
+      const res = await es.search<unknown>({ index, ...buildSearchBody(text, 100, { ranking }) });
+      return res.hits.hits.map((h) => Number(h._id)).filter((id) => Number.isFinite(id));
+    };
+    const result = await runEval({ queries: pool, judgmentsByQueryId, search });
+    return {
+      split: req.body?.split === "test" ? "test" : req.body?.split === "all" ? "all" : "train",
+      queryCount: result.queryCount,
+      ndcg: result.ndcg,
+      mrr: result.mrr,
+      recall: result.recall,
+      config: ranking,
+    };
+  });
 
   return app;
 }
