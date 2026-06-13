@@ -2,7 +2,7 @@ import type { Client } from "@elastic/elasticsearch";
 import Fastify, { type FastifyInstance } from "fastify";
 import { autocompleteProducts } from "./search/autocomplete.ts";
 import { searchProducts } from "./search/search.ts";
-import type { SortOption } from "./search/query.ts";
+import { priceBandBounds, type SortOption } from "./search/query.ts";
 
 const SORT_OPTIONS = ["relevance", "price_asc", "price_desc"] as const;
 
@@ -57,6 +57,7 @@ export function buildApp({ es, index, shopIndex, logger = false }: AppDeps): Fas
       material?: string | string[];
       priceMin?: string;
       priceMax?: string;
+      price?: string;
       sort?: string;
       page?: string;
       size?: string;
@@ -76,6 +77,9 @@ export function buildApp({ es, index, shopIndex, logger = false }: AppDeps): Fas
       // has the `category` field, and the benchmark scope needs no filter UI
       // (D7).
       const isShop = scope === "shop";
+      // A selected price band (?price=500-1000) maps to cents bounds; raw
+      // priceMin/priceMax remain available for direct API callers.
+      const band = priceBandBounds(req.query.price);
       return searchProducts(es, isShop ? shopIndex : index, query, {
         facets: isShop,
         sort: toSort(req.query.sort),
@@ -86,8 +90,8 @@ export function buildApp({ es, index, shopIndex, logger = false }: AppDeps): Fas
               category: toList(req.query.category),
               color: toList(req.query.color),
               material: toList(req.query.material),
-              priceMin: toCents(req.query.priceMin),
-              priceMax: toCents(req.query.priceMax),
+              priceMin: band.priceMin ?? toCents(req.query.priceMin),
+              priceMax: band.priceMax ?? toCents(req.query.priceMax),
             }
           : undefined,
       });

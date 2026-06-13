@@ -3,19 +3,78 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Fragment } from "react";
+import { FacetSidebar, SortSelect } from "../components/facet-controls";
+import { goToPage } from "../../lib/facet-url";
 import { formatPrice } from "../../lib/format";
 import { splitMarked } from "../../lib/highlight";
 
 const SEARCH_API_URL = process.env.SEARCH_API_URL ?? "http://localhost:3001";
+const PAGE_SIZE = 24;
 
 export const metadata: Metadata = { title: "Search" };
 
-async function search(query: string): Promise<SearchResponse> {
-  const res = await fetch(
-    `${SEARCH_API_URL}/search?q=${encodeURIComponent(query)}&scope=shop`,
-  );
+type RawParams = Record<string, string | string[] | undefined>;
+const LIST_KEYS = ["category", "color", "material"] as const;
+const SINGLE_KEYS = ["price", "sort", "page"] as const;
+
+/** The public querystring the browser shows — what the facet links operate on. */
+function publicQuery(query: string, params: RawParams): string {
+  const usp = new URLSearchParams();
+  usp.set("q", query);
+  for (const key of LIST_KEYS) {
+    const v = params[key];
+    for (const x of Array.isArray(v) ? v : v ? [v] : []) usp.append(key, x);
+  }
+  for (const key of SINGLE_KEYS) {
+    const v = params[key];
+    if (typeof v === "string" && v) usp.set(key, v);
+  }
+  return usp.toString();
+}
+
+async function search(query: string, params: RawParams): Promise<SearchResponse> {
+  const usp = new URLSearchParams(publicQuery(query, params));
+  usp.set("scope", "shop");
+  usp.set("size", String(PAGE_SIZE));
+  const res = await fetch(`${SEARCH_API_URL}/search?${usp.toString()}`);
   if (!res.ok) throw new Error(`Search service responded ${res.status}`);
   return SearchResponseSchema.parse(await res.json());
+}
+
+function Pagination({
+  total,
+  page,
+  currentQs,
+}: {
+  total: number;
+  page: number;
+  currentQs: string;
+}) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  if (totalPages <= 1) return null;
+  const linkClass =
+    "rounded-xs border border-line bg-card px-3.5 py-2 text-[14px] hover:border-pine";
+  return (
+    <nav aria-label="Pagination" className="mt-10 flex items-center justify-center gap-4">
+      {page > 1 ? (
+        <Link href={`/search?${goToPage(currentQs, page - 1)}`} className={linkClass} rel="prev">
+          Previous
+        </Link>
+      ) : (
+        <span className={`${linkClass} cursor-default text-ink-muted opacity-50`}>Previous</span>
+      )}
+      <span className="text-[14px] text-ink-muted">
+        Page {page} of {totalPages}
+      </span>
+      {page < totalPages ? (
+        <Link href={`/search?${goToPage(currentQs, page + 1)}`} className={linkClass} rel="next">
+          Next
+        </Link>
+      ) : (
+        <span className={`${linkClass} cursor-default text-ink-muted opacity-50`}>Next</span>
+      )}
+    </nav>
+  );
 }
 
 /**
@@ -80,22 +139,25 @@ function HitCard({ hit }: { hit: SearchHit }) {
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<RawParams>;
 }) {
-  const { q } = await searchParams;
+  const params = await searchParams;
+  const q = typeof params.q === "string" ? params.q : undefined;
   const query = q?.trim();
+  const page = Math.max(1, Number(params.page) || 1);
 
   let results: SearchResponse | null = null;
   let unavailable = false;
   if (query) {
     try {
-      results = await search(query);
+      results = await search(query, params);
     } catch {
       // The proper circuit breaker + Postgres fallback is step 10;
       // until then the page degrades honestly.
       unavailable = true;
     }
   }
+  const currentQs = query ? publicQuery(query, params) : "";
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 md:py-14">
@@ -121,44 +183,57 @@ export default async function SearchPage({
         </div>
       )}
 
-      {results && (
-        <section className="mt-6" aria-live="polite">
-          <p className="text-[13px] text-ink-muted">
-            {results.total.toLocaleString("en-US")} products · {results.tookMs}{" "}
-            ms · {results.mode} mode
+      {results && results.suggestion && (
+        <p className="mt-3 text-[15px]">
+          Did you mean{" "}
+          <Link
+            href={`/search?q=${encodeURIComponent(results.suggestion)}`}
+            className="font-medium text-pine underline"
+          >
+            {results.suggestion}
+          </Link>
+          ?
+        </p>
+      )}
+
+      {results && results.total === 0 && (
+        <div className="mt-8 max-w-2xl">
+          <p className="text-[15px] text-ink-muted">
+            Nothing found for “{results.query}”. Try fewer or different words, or
+            browse the{" "}
+            <Link href="/" className="text-pine underline">
+              categories
+            </Link>
+            .
           </p>
-          {results.suggestion && (
-            <p className="mt-3 text-[15px]">
-              Did you mean{" "}
-              <Link
-                href={`/search?q=${encodeURIComponent(results.suggestion)}`}
-                className="font-medium text-pine underline"
-              >
-                {results.suggestion}
-              </Link>
-              ?
-            </p>
-          )}
-          <ul className="mt-6 grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
-            {results.hits.map((hit) => (
-              <li key={hit.id}>
-                <HitCard hit={hit} />
-              </li>
-            ))}
-          </ul>
-          {results.total === 0 && (
-            <div className="mt-8 max-w-2xl">
-              <p className="text-[15px] text-ink-muted">
-                Nothing found for “{results.query}”. Try fewer or different
-                words, or browse the{" "}
-                <Link href="/" className="text-pine underline">
-                  categories
-                </Link>
-                .
-              </p>
+        </div>
+      )}
+
+      {results && results.total > 0 && (
+        <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-6 lg:grid-cols-[14rem_1fr]">
+          {results.facets && (
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <FacetSidebar facets={results.facets} />
             </div>
           )}
-        </section>
+          <section aria-live="polite">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+              <p className="text-[13px] text-ink-muted">
+                {results.total.toLocaleString("en-US")} products · {results.tookMs} ms ·{" "}
+                {results.mode} mode
+              </p>
+              <SortSelect />
+            </div>
+            <ul className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {results.hits.map((hit) => (
+                <li key={hit.id}>
+                  <HitCard hit={hit} />
+                </li>
+              ))}
+            </ul>
+            <Pagination total={results.total} page={page} currentQs={currentQs} />
+          </section>
+        </div>
       )}
     </main>
   );

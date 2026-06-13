@@ -18,12 +18,24 @@ export interface SearchFilters {
  * bands read cleanly and give hand-countable test fixtures. Reused as both
  * the range-aggregation buckets and the band-id vocabulary.
  */
-const PRICE_BANDS: { key: string; from?: number; to?: number }[] = [
+export const PRICE_BANDS: { key: string; from?: number; to?: number }[] = [
   { key: "under-500", to: 50_000 },
   { key: "500-1000", from: 50_000, to: 100_000 },
   { key: "1000-2000", from: 100_000, to: 200_000 },
   { key: "2000-plus", from: 200_000 },
 ];
+
+/** Map a price-band key (the facet bucket id) to inclusive cents bounds. */
+export function priceBandBounds(
+  key: string | undefined,
+): { priceMin?: number; priceMax?: number } {
+  const band = PRICE_BANDS.find((b) => b.key === key);
+  if (!band) return {};
+  return {
+    ...(band.from != null && { priceMin: band.from }),
+    ...(band.to != null && { priceMax: band.to }),
+  };
+}
 
 function termsClause(
   field: string,
