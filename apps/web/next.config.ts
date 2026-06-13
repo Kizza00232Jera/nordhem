@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Workspace packages ship TypeScript source; Next compiles them in-place.
   transpilePackages: ["@nordhem/shared", "@nordhem/db"],
+  // Allow the dev server's hot-reload socket to be reached from LAN devices
+  // (e.g. testing the storefront on a phone over the same Wi-Fi).
+  allowedDevOrigins: ["192.168.1.156"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

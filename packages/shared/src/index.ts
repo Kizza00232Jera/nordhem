@@ -104,3 +104,73 @@ export const AutocompleteResponseSchema = z.object({
 
 export type AutocompleteSuggestion = z.infer<typeof AutocompleteSuggestionSchema>;
 export type AutocompleteResponse = z.infer<typeof AutocompleteResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Step 5 commerce contracts (validated at the Server Action boundary — a form
+// post is untrusted input).
+// ---------------------------------------------------------------------------
+
+const nonBlank = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`);
+
+/** A shipping address. line2 is optional; country is an ISO 3166-1 alpha-2 code. */
+export const AddressSchema = z.object({
+  fullName: nonBlank("Full name"),
+  line1: nonBlank("Address line 1"),
+  line2: z.string().trim().nullable().optional().default(null),
+  city: nonBlank("City"),
+  postalCode: nonBlank("Postal code"),
+  country: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/, "Country must be a 2-letter code"),
+});
+
+/** One line of the cart as the UI renders it — live price, no snapshot. */
+export const CartLineViewSchema = z.object({
+  productId: z.number().int(),
+  name: z.string(),
+  slug: z.string(),
+  imageThumbUrl: z.string().nullable().optional(),
+  unitPriceCents: z.number().int().nonnegative(),
+  quantity: z.number().int().positive(),
+});
+
+/** The whole cart for the drawer and /cart page. */
+export const CartViewSchema = z.object({
+  items: z.array(CartLineViewSchema),
+  itemCount: z.number().int().nonnegative(),
+  subtotalCents: z.number().int().nonnegative(),
+  shippingCents: z.number().int().nonnegative(),
+  totalCents: z.number().int().nonnegative(),
+});
+
+/** A frozen order line, as snapshotted at checkout. */
+export const OrderItemViewSchema = z.object({
+  productId: z.number().int(),
+  nameSnapshot: z.string(),
+  slugSnapshot: z.string(),
+  imageUrlSnapshot: z.string().nullable(),
+  unitPriceCents: z.number().int().nonnegative(),
+  quantity: z.number().int().positive(),
+});
+
+/** A placed order for the confirmation page and order history. */
+export const OrderSummarySchema = z.object({
+  id: z.string(),
+  orderNumber: z.string(),
+  subtotalCents: z.number().int().nonnegative(),
+  shippingCents: z.number().int().nonnegative(),
+  totalCents: z.number().int().nonnegative(),
+  items: z.array(OrderItemViewSchema),
+});
+
+export type Address = z.infer<typeof AddressSchema>;
+export type CartLineView = z.infer<typeof CartLineViewSchema>;
+export type CartView = z.infer<typeof CartViewSchema>;
+export type OrderItemView = z.infer<typeof OrderItemViewSchema>;
+export type OrderSummary = z.infer<typeof OrderSummarySchema>;

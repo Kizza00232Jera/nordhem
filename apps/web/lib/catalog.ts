@@ -2,6 +2,7 @@ import {
   asc,
   desc,
   eq,
+  inArray,
   productImages,
   productsRaw,
   shopProducts,
@@ -44,6 +45,18 @@ export async function productsByCategory(category: string): Promise<ProductCard[
   return baseQuery()
     .where(eq(shopProducts.category, category))
     .orderBy(desc(productsRaw.ratingCount), asc(shopProducts.productId));
+}
+
+/**
+ * Cards for a set of product ids, returned in the SAME order as `ids` (the
+ * favorites page wants newest-favorited first, which the DB won't preserve).
+ * One query, then reordered in memory.
+ */
+export async function productsByIds(ids: number[]): Promise<ProductCard[]> {
+  if (ids.length === 0) return [];
+  const rows = await baseQuery().where(inArray(shopProducts.productId, ids));
+  const byId = new Map(rows.map((r) => [r.productId, r]));
+  return ids.map((id) => byId.get(id)).filter((p): p is ProductCard => !!p);
 }
 
 export async function featuredProducts(limit = 8): Promise<ProductCard[]> {
