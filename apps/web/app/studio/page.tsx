@@ -1,4 +1,4 @@
-import { Images, SearchCode } from "lucide-react";
+import { BarChart3, Images, SearchCode } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -39,6 +39,21 @@ export default function StudioHome() {
               <span className="mt-1 block text-[13px] leading-relaxed text-ink-muted">
                 nDCG@10, MRR and recall@100 over 480 judged queries. Compare
                 runs and surface the worst queries to fix.
+              </span>
+            </span>
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/studio/analytics"
+            className="flex items-start gap-4 rounded-md bg-card p-5 shadow-lift transition-shadow hover:shadow-float"
+          >
+            <BarChart3 aria-hidden className="mt-0.5 size-5 text-pine" strokeWidth={1.75} />
+            <span>
+              <span className="block text-[15px] font-semibold">Search analytics</span>
+              <span className="mt-1 block text-[13px] leading-relaxed text-ink-muted">
+                Top queries, zero-result rate, click-through by position and
+                latency, from first-party events.
               </span>
             </span>
           </Link>
