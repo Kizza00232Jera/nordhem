@@ -11,6 +11,7 @@
     "load-wands": "tsx src/wands/load-cli.ts",
     "load-eval": "tsx src/eval/load-eval-cli.ts",
     "run-eval": "tsx src/eval/run-eval-cli.ts",
+    "bench-modes": "tsx src/eval/bench-modes-cli.ts",
     "tune": "tsx src/eval/tune-cli.ts",
     "index-products": "tsx src/es/index-cli.ts",
     "index-shop": "tsx src/es/index-shop-cli.ts"
