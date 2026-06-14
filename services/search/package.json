@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.4.2",
+    "@huggingface/transformers": "^4.2.0",
     "@nordhem/db": "workspace:*",
     "@nordhem/shared": "workspace:*",
     "fastify": "^5.8.5",

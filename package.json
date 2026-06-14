@@ -11,5 +11,8 @@
     "test": "pnpm -r test",
     "test:integration": "pnpm -r test:integration",
     "tutor": "node tools/tutor-server.mjs"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["onnxruntime-node", "sharp"]
   }
 }
