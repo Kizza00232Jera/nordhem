@@ -6,9 +6,12 @@ import {
   createSynonymAction,
   deleteSynonymAction,
   toggleSynonymAction,
+  updateSynonymAction,
 } from "../actions/synonyms";
 import { validateSynonymRule, type SynonymKind } from "../../lib/synonyms-rules";
 import type { SynonymRow } from "../../lib/synonyms-repo";
+
+type DrawerState = { mode: "add" } | { mode: "edit"; row: SynonymRow } | null;
 
 const SOURCE_LABEL: Record<string, string> = {
   seed: "seed",
@@ -17,13 +20,8 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 function Chip({ children, tone = "term" }: { children: React.ReactNode; tone?: "term" | "source" }) {
-  const cls =
-    tone === "source"
-      ? "bg-paper text-ink-muted border-line"
-      : "bg-linen text-ink border-line";
-  return (
-    <span className={`inline-block rounded-xs border px-2 py-0.5 text-[12.5px] ${cls}`}>{children}</span>
-  );
+  const cls = tone === "source" ? "bg-paper text-ink-muted border-line" : "bg-linen text-ink border-line";
+  return <span className={`inline-block rounded-xs border px-2 py-0.5 text-[12.5px] ${cls}`}>{children}</span>;
 }
 
 function Terms({ row }: { row: SynonymRow }) {
@@ -45,7 +43,7 @@ function Terms({ row }: { row: SynonymRow }) {
 
 export function SynonymsEditor({ rules }: { rules: SynonymRow[] }) {
   const [filter, setFilter] = useState("");
-  const [adding, setAdding] = useState(false);
+  const [drawer, setDrawer] = useState<DrawerState>(null);
   const [apply, setApply] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -88,7 +86,7 @@ export function SynonymsEditor({ rules }: { rules: SynonymRow[] }) {
           </button>
           <button
             type="button"
-            onClick={() => setAdding(true)}
+            onClick={() => setDrawer({ mode: "add" })}
             className="rounded-xs bg-pine px-4 py-2 text-[14px] font-semibold text-white hover:bg-pine-deep"
           >
             Add rule
@@ -143,27 +141,34 @@ export function SynonymsEditor({ rules }: { rules: SynonymRow[] }) {
                       onClick={() => startTransition(() => toggleSynonymAction(row.id, !row.enabled))}
                       aria-pressed={row.enabled}
                       className={`rounded-xs border px-2.5 py-1 text-[12.5px] font-medium disabled:opacity-50 ${
-                        row.enabled
-                          ? "border-pine bg-pine text-white"
-                          : "border-line bg-card text-ink-muted"
+                        row.enabled ? "border-pine bg-pine text-white" : "border-line bg-card text-ink-muted"
                       }`}
                     >
                       {row.enabled ? "On" : "Off"}
                     </button>
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => {
-                        if (confirm(`Delete this rule (${row.terms})?`)) {
-                          startTransition(() => deleteSynonymAction(row.id));
-                        }
-                      }}
-                      className="text-[13px] text-ink-muted hover:text-error disabled:opacity-50"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setDrawer({ mode: "edit", row })}
+                        className="text-[13px] text-pine hover:underline"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => {
+                          if (confirm(`Delete this rule (${row.terms})?`)) {
+                            startTransition(() => deleteSynonymAction(row.id));
+                          }
+                        }}
+                        className="text-[13px] text-ink-muted hover:text-error disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -172,15 +177,16 @@ export function SynonymsEditor({ rules }: { rules: SynonymRow[] }) {
         </table>
       </div>
 
-      {adding && <AddRuleDrawer onClose={() => setAdding(false)} />}
+      {drawer && <RuleDrawer state={drawer} onClose={() => setDrawer(null)} />}
     </div>
   );
 }
 
-function AddRuleDrawer({ onClose }: { onClose: () => void }) {
-  const [kind, setKind] = useState<SynonymKind>("equivalent");
-  const [terms, setTerms] = useState("");
-  const [mapsTo, setMapsTo] = useState("");
+function RuleDrawer({ state, onClose }: { state: NonNullable<DrawerState>; onClose: () => void }) {
+  const editing = state.mode === "edit" ? state.row : null;
+  const [kind, setKind] = useState<SynonymKind>(editing?.kind ?? "equivalent");
+  const [terms, setTerms] = useState(editing?.terms ?? "");
+  const [mapsTo, setMapsTo] = useState(editing?.mapsTo ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -190,18 +196,20 @@ function AddRuleDrawer({ onClose }: { onClose: () => void }) {
   function onSave() {
     setError(null);
     startTransition(async () => {
-      const res = await createSynonymAction({ kind, terms, mapsTo });
+      const res = editing
+        ? await updateSynonymAction(editing.id, { kind, terms, mapsTo })
+        : await createSynonymAction({ kind, terms, mapsTo });
       if (res.ok) onClose();
       else setError(res.error);
     });
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label="Add synonym rule">
+    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={editing ? "Edit synonym rule" : "Add synonym rule"}>
       <div className="absolute inset-0 bg-ink/30" onClick={onClose} aria-hidden />
       <div className="relative h-full w-[min(440px,100vw)] overflow-y-auto bg-card p-6 shadow-float">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-2xl font-light">Add a synonym rule</h2>
+          <h2 className="font-display text-2xl font-light">{editing ? "Edit synonym rule" : "Add a synonym rule"}</h2>
           <button type="button" onClick={onClose} className="text-ink-muted hover:text-ink" aria-label="Close">
             Close
           </button>
@@ -244,7 +252,7 @@ function AddRuleDrawer({ onClose }: { onClose: () => void }) {
           <label className="mt-4 block">
             <span className="mb-1.5 block text-[13px] font-medium text-ink-muted">Maps to</span>
             <input
-              value={mapsTo}
+              value={mapsTo ?? ""}
               onChange={(e) => setMapsTo(e.target.value)}
               placeholder="sofa"
               className="h-10 w-full rounded-xs border border-line bg-card px-3 text-[14px] focus:outline-none focus:ring-2 focus:ring-pine"
@@ -257,9 +265,7 @@ function AddRuleDrawer({ onClose }: { onClose: () => void }) {
             {check.warning}
           </p>
         )}
-        {!check.ok && terms.trim() && (
-          <p className="mt-4 text-[12.5px] text-error">{check.error}</p>
-        )}
+        {!check.ok && terms.trim() && <p className="mt-4 text-[12.5px] text-error">{check.error}</p>}
         {error && <p className="mt-4 text-[12.5px] text-error">{error}</p>}
 
         <div className="mt-6 flex gap-2">
@@ -269,7 +275,7 @@ function AddRuleDrawer({ onClose }: { onClose: () => void }) {
             disabled={!canSave || pending}
             className="rounded-xs bg-pine px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-pine-deep disabled:opacity-50"
           >
-            {pending ? "Saving…" : "Save rule"}
+            {pending ? "Saving…" : editing ? "Save changes" : "Save rule"}
           </button>
           <button
             type="button"
@@ -279,7 +285,11 @@ function AddRuleDrawer({ onClose }: { onClose: () => void }) {
             Cancel
           </button>
         </div>
-        <p className="mt-3 text-[12px] text-ink-muted">Saved rules are enabled, but only reach live search once you click Apply to search.</p>
+        <p className="mt-3 text-[12px] text-ink-muted">
+          {editing
+            ? "Changes save to the database; click Apply to search to push them live."
+            : "Saved rules are enabled, but only reach live search once you click Apply to search."}
+        </p>
       </div>
     </div>
   );

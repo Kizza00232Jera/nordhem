@@ -5,6 +5,7 @@ import {
   createSynonym,
   deleteSynonym,
   setSynonymEnabled,
+  updateSynonym,
   validateSynonymRule,
   type SynonymInput,
 } from "../../lib/synonyms-repo";
@@ -19,6 +20,14 @@ export async function createSynonymAction(input: SynonymInput): Promise<ActionRe
   const v = validateSynonymRule(input);
   if (!v.ok) return { ok: false, error: v.error ?? "Invalid rule." };
   await createSynonym(input);
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
+export async function updateSynonymAction(id: string, input: SynonymInput): Promise<ActionResult> {
+  const v = validateSynonymRule(input);
+  if (!v.ok) return { ok: false, error: v.error ?? "Invalid rule." };
+  await updateSynonym(id, input);
   revalidatePath(PATH);
   return { ok: true };
 }

@@ -39,6 +39,18 @@ export async function createSynonym(input: SynonymInput): Promise<void> {
   });
 }
 
+export async function updateSynonym(id: string, input: SynonymInput): Promise<void> {
+  await db()
+    .update(synonymRules)
+    .set({
+      kind: input.kind,
+      terms: splitTerms(input.terms).join(", "),
+      mapsTo: input.kind === "oneway" ? (input.mapsTo ?? "").trim() : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(synonymRules.id, id));
+}
+
 export async function setSynonymEnabled(id: string, enabled: boolean): Promise<void> {
   await db()
     .update(synonymRules)
