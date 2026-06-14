@@ -25,9 +25,15 @@ const MODES = [
   { value: "hybrid", label: "Hybrid", hint: "keyword and meaning fused (RRF)" },
 ] as const;
 
+// Keyword is the default: it is the mode that also works in lite mode (when the
+// PC search service is asleep and the shop falls back to Postgres full-text),
+// so the default behaves the same whether or not embeddings are reachable. The
+// Meaning/Hybrid toggle lights up when the full search service is up.
+const DEFAULT_MODE = "lexical";
+
 function modeOf(params: RawParams): string {
   const m = params.mode;
-  return typeof m === "string" && MODES.some((x) => x.value === m) ? m : "lexical";
+  return typeof m === "string" && MODES.some((x) => x.value === m) ? m : DEFAULT_MODE;
 }
 
 /** The public querystring the browser shows — what the facet links operate on. */
@@ -49,6 +55,7 @@ async function search(query: string, params: RawParams): Promise<SearchResponse>
   const usp = new URLSearchParams(publicQuery(query, params));
   usp.set("scope", "shop");
   usp.set("size", String(PAGE_SIZE));
+  usp.set("mode", modeOf(params)); // explicit, so a no-mode URL still gets the hybrid default
   const res = await fetch(`${SEARCH_API_URL}/search?${usp.toString()}`);
   if (!res.ok) throw new Error(`Search service responded ${res.status}`);
   return SearchResponseSchema.parse(await res.json());
