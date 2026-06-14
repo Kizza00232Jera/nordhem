@@ -1,6 +1,6 @@
 # NORDHEM — Build Plan
 
-> **STATUS (2026-06-14): Step 7 (relevance lab: tuning) BUILT on branch `step/07-relevance-tuning` (6 slices): config-driven RankingConfig query, parallel eval + train/test split, a tuned config GRADUATED into the storefront default (fuzzy prefix_length 2 + phrase boost; nDCG@10 0.6532 -> 0.6629, MRR 0.8701 -> 0.8804, recall 37.5% -> 38.4%; "light chair" fixed, the fuzzy light->right sofas gone), a search-service /eval endpoint, a Studio tuning UI (sliders + re-eval on a train sample), and an /explain score visualizer. Honest overfitting note recorded (train gain did not fully generalise to the held-out test split). Green: 45 search unit + 30 integration, web typecheck/lint. NEXT: wrap (PR + tag v0.7, teaching HTML, blog), then Step 8 (semantic & hybrid search).**
+> **STATUS (2026-06-14): Step 8 (semantic & hybrid search) BUILT on branch `step/08-semantic-hybrid` (5 slices): local e5 embeddings (multilingual-e5-small in-process via Transformers.js/ONNX), `dense_vector` + kNN, a pure RRF hybrid fuser, a three-mode benchmark + zero-result rescue, `/search?mode=`, and a storefront Keyword/Meaning/Hybrid toggle. Benchmark over 480 judged queries: lexical nDCG@10 0.6615 -> hybrid 0.7284 (MRR 0.8809 -> 0.9299), the biggest single-step relevance jump so far; semantic ALONE raised ranking but dropped recall (38.4% -> 33.7%), hybrid keeps both. One-time 43k embedding batch ~42 min. Green: 54 search unit + integration (embed/semantic/hybrid), all typecheck + web lint. Teaching step-08 done; blog "two words / e5 prefixes" published. NEXT: PR + tag v0.8, then Step 9 (editor tools: synonyms/curations/boost rules with change history + pre-apply eval).**
 > Repo public at github.com/Kizza00232Jera/nordhem. Local stack: `docker compose up -d`, then `pnpm -F @nordhem/search dev` + `pnpm -F @nordhem/web dev`. Tutor for lessons: `pnpm tutor`.
 
 Every step ends with the wrap-step ritual: working demo → `teaching/step-XX-*.html` with quiz + interviewer Q&A → blog cards proposed → `docs/interview-bank.md` updated → `docs/blog-moments.md` harvested → this file's status updated → commit. Steps are sized roughly an evening-to-weekend each.
@@ -74,9 +74,9 @@ Benchmark index: full 42,994 products. Load 480 queries + 233k judgments. Eval h
 Field-boost tuning UI (sliders → instant re-eval), popularity signals via function_score (rating_count/review_count), `_explain` score-breakdown visualizer, train/test query split (don't overfit judgments), "graduate winning config to shop index".
 *Teaching: BM25 k1/b; boosting strategies; reading _explain; overfitting in relevance tuning.*
 
-### ⬜ Step 8 — Semantic & hybrid search
-Embedding pipeline (Transformers.js `multilingual-e5-small`, e5 query/passage prefixes), `dense_vector` + kNN, hybrid RRF fusion. Benchmark lexical vs semantic vs hybrid with real nDCG numbers. Zero-result rescue analysis. Semantic toggle in storefront.
-*Teaching: embedding intuition; HNSW; RRF math; when semantic helps and hurts.*
+### ✅ Step 8 — Semantic & hybrid search (done 2026-06-14)
+Embedding pipeline (Transformers.js `multilingual-e5-small`, e5 query/passage prefixes), `dense_vector` + kNN, hybrid RRF fusion. Benchmark lexical vs semantic vs hybrid with real nDCG numbers. Zero-result rescue analysis. Semantic toggle in storefront. Result: hybrid nDCG@10 0.7284 vs lexical 0.6615; semantic alone trades recall for ranking.
+*Teaching: embedding intuition; HNSW; RRF math; when semantic helps and hurts.* → `teaching/step-08-semantic-hybrid.html`
 
 ### ⬜ Step 9 — Editor tools (the job-post requirement)
 Studio CRUD for: synonyms (Postgres-stored, hot-reloaded into ES), curations (pin/hide products per query), boost rules — all with change history (who/when/what). Each change can be re-evaluated against the benchmark BEFORE applying. This is "develop tools in Node.JS to help editors improve search" made literal.

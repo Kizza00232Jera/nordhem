@@ -1,7 +1,16 @@
 import type { Client, estypes } from "@elastic/elasticsearch";
 import type { RawProduct } from "../wands/parse.ts";
+import { attachEmbeddings } from "../embed/index-embed.ts";
 import { buildAnalysis, PRODUCT_MAPPINGS, SHOP_MAPPINGS } from "./analysis.ts";
 import { loadSynonymRules } from "./synonyms.ts";
+
+/** Index-time options shared by both indexes. */
+export interface IndexOptions {
+  /** Compute and store the e5 embedding for each document (Step 8). */
+  embed?: boolean;
+  /** Progress callback for the (slow) embedding batch. */
+  onEmbedProgress?: (done: number, total: number) => void;
+}
 
 /**
  * The document shape in the products index. snake_case mirrors the
@@ -17,6 +26,8 @@ export interface ProductDocument {
   rating_count: number | null;
   average_rating: number | null;
   review_count: number | null;
+  /** e5 embedding (Step 8); absent on text-only indexing runs. */
+  embedding?: number[];
 }
 
 export function toDocument(p: RawProduct): ProductDocument {
@@ -50,6 +61,8 @@ export interface ShopDocument {
   // no recorded value — it is then simply absent from that facet).
   color: string | null;
   material: string | null;
+  /** e5 embedding (Step 8); absent on text-only indexing runs. */
+  embedding?: number[];
 }
 
 /**
@@ -90,14 +103,23 @@ export async function indexProducts(
   es: Client,
   index: string,
   products: RawProduct[],
+  opts: IndexOptions = {},
 ): Promise<number> {
-  return recreateAndBulk(es, index, products.map(toDocument), PRODUCT_MAPPINGS);
+  const docs = products.map(toDocument);
+  const finalDocs = opts.embed
+    ? await attachEmbeddings(docs, { onProgress: opts.onEmbedProgress })
+    : docs;
+  return recreateAndBulk(es, index, finalDocs, PRODUCT_MAPPINGS);
 }
 
 export async function indexShopDocuments(
   es: Client,
   index: string,
   docs: ShopDocument[],
+  opts: IndexOptions = {},
 ): Promise<number> {
-  return recreateAndBulk(es, index, docs, SHOP_MAPPINGS);
+  const finalDocs = opts.embed
+    ? await attachEmbeddings(docs, { onProgress: opts.onEmbedProgress })
+    : docs;
+  return recreateAndBulk(es, index, finalDocs, SHOP_MAPPINGS);
 }
