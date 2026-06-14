@@ -55,4 +55,13 @@ describe("synonyms hot-reload (no reindex)", () => {
     const { count } = await es.count({ index: INDEX });
     expect(count).toBe(2);
   });
+
+  it("skips a malformed rule instead of breaking the whole analyzer (lenient)", async () => {
+    // "chest of drawers" loses the stopword "of" to the analyzer, leaving a
+    // position gap that synonym_graph rejects. Without lenient it would fail
+    // the entire reload; with lenient it is dropped and the good rule applies.
+    await reloadSynonyms(es, INDEX, ["chest of drawers, dresser", "sofa bed, futon"]);
+    const ids = await lexicalProductIds(es, INDEX, "sofa bed", 10);
+    expect(ids).toContain(1); // the good rule survived the malformed one
+  });
 });

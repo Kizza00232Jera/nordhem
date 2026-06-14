@@ -11,7 +11,7 @@ import { loadSynonymRules, parseSolrRule, type SynonymRule } from "./synonyms.ts
  */
 const CATALOG_MINED: SynonymRule[] = [
   { kind: "equivalent", terms: "chaise, chaise lounge, chaise longue, chase lounge" },
-  { kind: "equivalent", terms: "dresser, chest of drawers, bureau" },
+  { kind: "equivalent", terms: "dresser, bureau" },
   { kind: "equivalent", terms: "console table, sofa table" },
   { kind: "equivalent", terms: "sideboard, credenza, buffet" },
   { kind: "equivalent", terms: "coffee table, cocktail table" },
