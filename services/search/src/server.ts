@@ -4,10 +4,11 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { makeEvalDataCache } from "./eval/eval-data.ts";
 import { runEval, trainTestSplit } from "./eval/harness.ts";
 import { autocompleteProducts } from "./search/autocomplete.ts";
-import { searchProducts } from "./search/search.ts";
+import { searchProducts, type SearchMode } from "./search/search.ts";
 import { buildSearchBody, coerceRankingConfig, priceBandBounds, type SortOption } from "./search/query.ts";
 
 const SORT_OPTIONS = ["relevance", "price_asc", "price_desc"] as const;
+const SEARCH_MODES = ["lexical", "semantic", "hybrid"] as const;
 
 export interface AppDeps {
   es: Client;
@@ -43,6 +44,11 @@ export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps):
       ? (v as SortOption)
       : "relevance";
 
+  const toMode = (v: string | undefined): SearchMode =>
+    (SEARCH_MODES as readonly string[]).includes(v ?? "")
+      ? (v as SearchMode)
+      : "lexical";
+
   const toPage = (v: string | undefined): number => {
     const n = Number(v);
     return Number.isInteger(n) && n >= 1 ? n : 1;
@@ -66,6 +72,7 @@ export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps):
       sort?: string;
       page?: string;
       size?: string;
+      mode?: string;
     };
   }>(
     "/search",
@@ -87,6 +94,7 @@ export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps):
       const band = priceBandBounds(req.query.price);
       return searchProducts(es, isShop ? shopIndex : index, query, {
         facets: isShop,
+        mode: toMode(req.query.mode),
         sort: toSort(req.query.sort),
         page: toPage(req.query.page),
         size: toSize(req.query.size),

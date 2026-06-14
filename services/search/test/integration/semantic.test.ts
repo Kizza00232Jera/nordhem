@@ -4,6 +4,7 @@ import { createEsClient } from "../../src/es/client.ts";
 import { indexProducts } from "../../src/es/indexer.ts";
 import { embedQuery } from "../../src/embed/embed.ts";
 import { knnProductIds } from "../../src/search/semantic.ts";
+import { searchProducts } from "../../src/search/search.ts";
 import type { RawProduct } from "../../src/wands/parse.ts";
 
 const ES_IMAGE = "docker.elastic.co/elasticsearch/elasticsearch:9.3.1";
@@ -52,5 +53,18 @@ describe("semantic retrieval (dense_vector + kNN)", () => {
     const vector = await embedQuery("frying pan");
     const ids = await knnProductIds(es, INDEX, vector, { k: 3, numCandidates: 10 });
     expect(ids[0]).toBe(2); // the cookware set
+  });
+
+  it("searchProducts mode=semantic returns hydrated, ordered hits", async () => {
+    const res = await searchProducts(es, INDEX, "sofa", { mode: "semantic", size: 3 });
+    expect(res.hits[0]?.id).toBe("1");
+    expect(res.hits[0]?.name).toBe("two-seater couch"); // full document hydrated, not just an id
+    expect(res.total).toBeGreaterThan(0);
+  });
+
+  it("searchProducts mode=hybrid hydrates hits too", async () => {
+    const res = await searchProducts(es, INDEX, "sofa", { mode: "hybrid", size: 3 });
+    expect(res.hits[0]?.id).toBe("1");
+    expect(res.hits[0]?.name).toBe("two-seater couch");
   });
 });
