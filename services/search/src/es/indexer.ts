@@ -10,6 +10,12 @@ export interface IndexOptions {
   embed?: boolean;
   /** Progress callback for the (slow) embedding batch. */
   onEmbedProgress?: (done: number, total: number) => void;
+  /**
+   * Synonym rules (Solr lines) baked into the search analyzer (Step 9).
+   * Defaults to the synonyms.txt file; the CLIs pass the Postgres rules so the
+   * editable rules are the source of truth.
+   */
+  synonymRules?: string[];
 }
 
 /**
@@ -75,13 +81,14 @@ async function recreateAndBulk<T extends { product_id: number }>(
   index: string,
   docs: T[],
   mappings: estypes.MappingTypeMapping,
+  synonymRules: string[],
 ): Promise<number> {
   if (await es.indices.exists({ index })) {
     await es.indices.delete({ index });
   }
   await es.indices.create({
     index,
-    settings: { analysis: buildAnalysis(loadSynonymRules()) },
+    settings: { analysis: buildAnalysis(synonymRules) },
     mappings,
   });
 
@@ -109,7 +116,7 @@ export async function indexProducts(
   const finalDocs = opts.embed
     ? await attachEmbeddings(docs, { onProgress: opts.onEmbedProgress })
     : docs;
-  return recreateAndBulk(es, index, finalDocs, PRODUCT_MAPPINGS);
+  return recreateAndBulk(es, index, finalDocs, PRODUCT_MAPPINGS, opts.synonymRules ?? loadSynonymRules());
 }
 
 export async function indexShopDocuments(
@@ -121,5 +128,28 @@ export async function indexShopDocuments(
   const finalDocs = opts.embed
     ? await attachEmbeddings(docs, { onProgress: opts.onEmbedProgress })
     : docs;
-  return recreateAndBulk(es, index, finalDocs, SHOP_MAPPINGS);
+  return recreateAndBulk(es, index, finalDocs, SHOP_MAPPINGS, opts.synonymRules ?? loadSynonymRules());
+}
+
+/**
+ * Hot-reload the search-time synonyms on a live index WITHOUT reindexing the
+ * 43k documents (Step 9). Synonyms live only in the `english_search` analyzer,
+ * which runs at query time; documents are indexed with `english_text` (no
+ * synonyms), so changing the rules never touches stored data. Updating analysis
+ * settings requires the index closed, so this closes it, rewrites the analysis
+ * with the new rules, and reopens, a sub-second blip rather than a minutes-long
+ * rebuild. The studio calls this after an editor changes a rule.
+ */
+export async function reloadSynonyms(
+  es: Client,
+  index: string,
+  synonymRules: string[],
+): Promise<void> {
+  await es.indices.close({ index });
+  try {
+    await es.indices.putSettings({ index, settings: { analysis: buildAnalysis(synonymRules) } });
+  } finally {
+    await es.indices.open({ index });
+  }
+  await es.cluster.health({ index, wait_for_status: "yellow", timeout: "30s" });
 }
