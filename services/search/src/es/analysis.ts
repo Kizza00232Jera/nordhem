@@ -64,6 +64,19 @@ const englishText: estypes.MappingProperty = {
 };
 
 /**
+ * Semantic-search vector field (Step 8): the multilingual-e5-small embedding of
+ * the product text, 384 dims. index: true builds an HNSW graph for fast
+ * approximate kNN; cosine similarity, since the embed module L2-normalizes.
+ * Optional at index time, so a text-only (un-embedded) document is still valid.
+ */
+const embeddingField: estypes.MappingProperty = {
+  type: "dense_vector",
+  dims: 384,
+  index: true,
+  similarity: "cosine",
+};
+
+/**
  * `name` carries the multi-field subfields: `.keyword` for exact values
  * (sorting, aggregations — parity with what dynamic mapping gave step 1/2).
  */
@@ -94,6 +107,7 @@ export const PRODUCT_MAPPINGS: estypes.MappingTypeMapping = {
     rating_count: { type: "integer" },
     average_rating: { type: "float" },
     review_count: { type: "integer" },
+    embedding: embeddingField,
   },
 };
 
@@ -113,5 +127,6 @@ export const SHOP_MAPPINGS: estypes.MappingTypeMapping = {
     // filtered like `category`. Derived from WANDS features at index time.
     color: { type: "keyword" },
     material: { type: "keyword" },
+    embedding: embeddingField,
   },
 };
