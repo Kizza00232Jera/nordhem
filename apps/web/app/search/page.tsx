@@ -4,9 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { Fragment } from "react";
 import { FacetSidebar, SortSelect } from "../components/facet-controls";
+import { TrackSearch } from "../components/track-search";
+import { TrackedLink } from "../components/tracked-link";
 import { goToPage } from "../../lib/facet-url";
 import { formatPrice } from "../../lib/format";
 import { splitMarked } from "../../lib/highlight";
+import { clickPosition } from "../../lib/track";
 
 const SEARCH_API_URL = process.env.SEARCH_API_URL ?? "http://localhost:3001";
 const PAGE_SIZE = 24;
@@ -145,10 +148,13 @@ function ModeToggle({ query, params }: { query: string; params: RawParams }) {
   );
 }
 
-function HitCard({ hit }: { hit: SearchHit }) {
+function HitCard({ hit, query, position }: { hit: SearchHit; query: string; position: number }) {
   return (
-    <Link
+    <TrackedLink
       href={`/product/${hit.slug}`}
+      query={query}
+      productId={Number(hit.id)}
+      position={position}
       className="group block overflow-hidden rounded-md bg-card shadow-lift transition-shadow duration-200 hover:shadow-float"
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-linen">
@@ -181,7 +187,7 @@ function HitCard({ hit }: { hit: SearchHit }) {
           </p>
         )}
       </div>
-    </Link>
+    </TrackedLink>
   );
 }
 
@@ -222,6 +228,15 @@ export default async function SearchPage({
       )}
 
       {query && <ModeToggle query={query} params={params} />}
+
+      {results && (
+        <TrackSearch
+          query={results.query}
+          mode={modeOf(params) as "lexical" | "semantic" | "hybrid"}
+          resultCount={results.total}
+          latencyMs={Math.round(results.tookMs)}
+        />
+      )}
 
       {unavailable && (
         <div className="mt-8 max-w-2xl rounded-md bg-linen px-5 py-4 text-[15px]">
@@ -276,9 +291,9 @@ export default async function SearchPage({
               <SortSelect />
             </div>
             <ul className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {results.hits.map((hit) => (
+              {results.hits.map((hit, i) => (
                 <li key={hit.id}>
-                  <HitCard hit={hit} />
+                  <HitCard hit={hit} query={results.query} position={clickPosition(page, i, PAGE_SIZE)} />
                 </li>
               ))}
             </ul>
