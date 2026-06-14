@@ -302,3 +302,26 @@ export const evalQueryScores = pgTable(
   },
   (t) => [primaryKey({ columns: [t.runId, t.queryId] })],
 );
+
+// ---------------------------------------------------------------------------
+// Step 9 editor tools: synonym rules, editable in the studio and hot-reloaded
+// into the index analyzer (no reindex needed, since synonyms are query-time).
+// synonyms.txt seeds this table; the table is the source of truth afterwards.
+// ---------------------------------------------------------------------------
+
+/** An editable synonym rule. Rendered structured in the editor; emitted as a
+ *  Solr synonym_graph line for Elasticsearch (see toSolrRule). */
+export const synonymRules = pgTable("synonym_rules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** 'equivalent' (all terms interchangeable) or 'oneway' (terms map to mapsTo). */
+  kind: text("kind").notNull(),
+  /** Equivalent: the comma list. One-way: the left-hand terms. */
+  terms: text("terms").notNull(),
+  /** One-way only: the term the LHS maps to; null for equivalent. */
+  mapsTo: text("maps_to"),
+  enabled: boolean("enabled").notNull().default(true),
+  /** Provenance: 'seed' (from synonyms.txt), 'catalog-mined', or 'manual'. */
+  source: text("source").notNull().default("manual"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

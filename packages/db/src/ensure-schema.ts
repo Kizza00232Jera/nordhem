@@ -201,4 +201,18 @@ export async function ensureSchema(db: Db): Promise<void> {
       PRIMARY KEY (run_id, query_id)
     )
   `);
+
+  // Step 9 editor tools: synonym rules. Mirror schema.ts exactly.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS synonym_rules (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      kind text NOT NULL,
+      terms text NOT NULL,
+      maps_to text,
+      enabled boolean NOT NULL DEFAULT true,
+      source text NOT NULL DEFAULT 'manual',
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
 }
