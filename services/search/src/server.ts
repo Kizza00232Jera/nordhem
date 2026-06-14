@@ -3,6 +3,8 @@ import type { Db } from "@nordhem/db";
 import Fastify, { type FastifyInstance } from "fastify";
 import { makeEvalDataCache } from "./eval/eval-data.ts";
 import { runEval, trainTestSplit } from "./eval/harness.ts";
+import { reloadSynonyms } from "./es/indexer.ts";
+import { loadSynonymRulesFromDb } from "./es/synonyms-db.ts";
 import { autocompleteProducts } from "./search/autocomplete.ts";
 import { searchProducts, type SearchMode } from "./search/search.ts";
 import { buildSearchBody, coerceRankingConfig, priceBandBounds, type SortOption } from "./search/query.ts";
@@ -182,6 +184,24 @@ export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps):
       recall: result.recall,
       config: ranking,
     };
+  });
+
+  // Editor tools (Step 9): apply the current Postgres synonym rules to the live
+  // indexes' search analyzer with no reindex (synonyms are query-time). This is
+  // what the studio "Apply to search" button calls after an editor saves a rule.
+  app.post("/synonyms/reload", async (_req, reply) => {
+    if (!db) {
+      return reply.code(503).send({ error: "synonyms reload requires a database connection" });
+    }
+    const rules = await loadSynonymRulesFromDb(db);
+    const reloaded: string[] = [];
+    for (const target of [index, shopIndex]) {
+      if (await es.indices.exists({ index: target })) {
+        await reloadSynonyms(es, target, rules);
+        reloaded.push(target);
+      }
+    }
+    return { applied: rules.length, indexes: reloaded };
   });
 
   return app;
