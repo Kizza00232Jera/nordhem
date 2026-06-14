@@ -1,6 +1,7 @@
 import {
   boolean,
   doublePrecision,
+  index,
   integer,
   jsonb,
   pgSequence,
@@ -360,3 +361,41 @@ export const changeLog = pgTable("change_log", {
   actor: text("actor").notNull().default("editor"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// Step 10 analytics: first-party search telemetry. One row per event. A search
+// row fills mode/result_count/zero_result/latency_ms (click columns null); a
+// click row fills product_id/position (search columns null). `source` keeps
+// simulated traffic honest ('live' vs 'synthetic') so dashboards can exclude
+// it. Lives in Postgres, so it keeps recording in lite mode (D11/D12).
+// ---------------------------------------------------------------------------
+
+export const searchEvents = pgTable(
+  "search_events",
+  {
+    id: serial("id").primaryKey(),
+    /** 'search' | 'click'. */
+    type: text("type").notNull(),
+    query: text("query").notNull(),
+    /** search only: 'lexical' | 'semantic' | 'hybrid'. */
+    mode: text("mode"),
+    /** search only: number of hits returned. */
+    resultCount: integer("result_count"),
+    /** search only: result_count === 0, denormalized for cheap zero-rate queries. */
+    zeroResult: boolean("zero_result"),
+    /** click only: the clicked product. */
+    productId: integer("product_id"),
+    /** click only: 1-based rank of the clicked result. */
+    position: integer("position"),
+    /** search only: server-measured latency. */
+    latencyMs: integer("latency_ms"),
+    /** 'live' (real visitor) | 'synthetic' (simulated traffic generator). */
+    source: text("source").notNull().default("live"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("search_events_type_idx").on(t.type),
+    index("search_events_query_idx").on(t.query),
+    index("search_events_created_idx").on(t.createdAt),
+  ],
+);
