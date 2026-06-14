@@ -22,7 +22,10 @@ export function buildAnalysis(
       english_possessive_stemmer: { type: "stemmer", language: "possessive_english" },
       english_stop: { type: "stop", stopwords: "_english_" },
       english_stemmer: { type: "stemmer", language: "english" },
-      english_synonyms: { type: "synonym_graph", synonyms: synonymRules },
+      // lenient: a single malformed rule (e.g. a multi-word term whose stopword
+      // is stripped, leaving a position gap) is skipped instead of failing the
+      // whole analyzer. Editors can add rules without risking taking down search.
+      english_synonyms: { type: "synonym_graph", synonyms: synonymRules, lenient: true },
       trigram_shingles: {
         type: "shingle",
         min_shingle_size: 2,

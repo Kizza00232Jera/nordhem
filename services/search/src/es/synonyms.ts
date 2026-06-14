@@ -18,3 +18,42 @@ export function parseSynonymRules(text: string): string[] {
 export function loadSynonymRules(): string[] {
   return parseSynonymRules(readFileSync(SYNONYMS_FILE, "utf8"));
 }
+
+/**
+ * A synonym rule as the studio editor and the database hold it: an
+ * `equivalent` group (all terms interchangeable) or a `oneway` rule (the LHS
+ * terms map TO the RHS, but not back). This structured form is what an editor
+ * renders; Elasticsearch wants the Solr line, so the two convert below.
+ */
+export interface SynonymRule {
+  kind: "equivalent" | "oneway";
+  /** Equivalent: the whole comma list. One-way: the left-hand terms. */
+  terms: string;
+  /** One-way only: the term the LHS maps to. */
+  mapsTo?: string | null;
+}
+
+/**
+ * Render a structured rule as a Solr synonym_graph line, exactly what the
+ * analyzer consumes. Equivalent stays a comma list; one-way uses ` => `.
+ * Getting this wrong silently breaks synonyms (no error, worse recall), so it
+ * is a pure function pinned by unit tests.
+ */
+export function toSolrRule(rule: SynonymRule): string {
+  const terms = rule.terms.trim();
+  if (rule.kind === "oneway") return `${terms} => ${(rule.mapsTo ?? "").trim()}`;
+  return terms;
+}
+
+/** Parse a Solr synonym_graph line back into a structured rule (for the editor). */
+export function parseSolrRule(line: string): SynonymRule {
+  const arrow = line.indexOf("=>");
+  if (arrow !== -1) {
+    return {
+      kind: "oneway",
+      terms: line.slice(0, arrow).trim(),
+      mapsTo: line.slice(arrow + 2).trim(),
+    };
+  }
+  return { kind: "equivalent", terms: line.trim(), mapsTo: null };
+}

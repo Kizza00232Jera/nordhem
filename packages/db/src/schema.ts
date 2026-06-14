@@ -302,3 +302,61 @@ export const evalQueryScores = pgTable(
   },
   (t) => [primaryKey({ columns: [t.runId, t.queryId] })],
 );
+
+// ---------------------------------------------------------------------------
+// Step 9 editor tools: synonym rules, editable in the studio and hot-reloaded
+// into the index analyzer (no reindex needed, since synonyms are query-time).
+// synonyms.txt seeds this table; the table is the source of truth afterwards.
+// ---------------------------------------------------------------------------
+
+/** An editable synonym rule. Rendered structured in the editor; emitted as a
+ *  Solr synonym_graph line for Elasticsearch (see toSolrRule). */
+export const synonymRules = pgTable("synonym_rules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** 'equivalent' (all terms interchangeable) or 'oneway' (terms map to mapsTo). */
+  kind: text("kind").notNull(),
+  /** Equivalent: the comma list. One-way: the left-hand terms. */
+  terms: text("terms").notNull(),
+  /** One-way only: the term the LHS maps to; null for equivalent. */
+  mapsTo: text("maps_to"),
+  enabled: boolean("enabled").notNull().default(true),
+  /** Provenance: 'seed' (from synonyms.txt), 'catalog-mined', or 'manual'. */
+  source: text("source").notNull().default("manual"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * A per-query curation (Step 9): an editor pins products to the top and/or
+ * hides products for one exact query. Unlike synonyms (analyzer, needs reload),
+ * curations are read at query time, so a change takes effect on the next search
+ * with no reindex and no reload. One row per normalized (trim+lowercase) query.
+ */
+export const curations = pgTable("curations", {
+  query: text("query").primaryKey(),
+  /** Ordered product ids forced to the top. */
+  pinned: jsonb("pinned").$type<number[]>().notNull().default([]),
+  /** Product ids removed from the results. */
+  hidden: jsonb("hidden").$type<number[]>().notNull().default([]),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+/**
+ * Change history (Step 9): an append-only audit trail of editor actions on
+ * synonyms and curations (who/when/what), so the studio can show what changed
+ * and when, distinguishing edits from the "apply/publish" that pushes them live.
+ */
+export const changeLog = pgTable("change_log", {
+  id: serial("id").primaryKey(),
+  /** 'synonym' | 'curation' | 'apply'. */
+  entity: text("entity").notNull(),
+  /** 'create' | 'update' | 'delete' | 'apply'. */
+  action: text("action").notNull(),
+  /** Human-readable one-liner shown in the history ledger. */
+  summary: text("summary").notNull(),
+  /** Optional structured before/after or metrics. */
+  detail: jsonb("detail"),
+  /** Who made the change; single-operator studio, so defaults to 'editor'. */
+  actor: text("actor").notNull().default("editor"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

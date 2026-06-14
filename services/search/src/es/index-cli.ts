@@ -1,6 +1,7 @@
 import { createDb, productsRaw } from "@nordhem/db";
 import { createEsClient } from "./client.ts";
 import { indexProducts } from "./indexer.ts";
+import { loadSynonymRulesFromDb } from "./synonyms-db.ts";
 
 const databaseUrl =
   process.env.DATABASE_URL ?? "postgres://nordhem:nordhem@localhost:5432/nordhem";
@@ -16,10 +17,14 @@ const { db, close } = createDb(databaseUrl);
 try {
   const products = await db.select().from(productsRaw);
   console.log(`read ${products.length} products from postgres`);
+  // Synonyms come from Postgres (Step 9); empty table falls back to synonyms.txt.
+  const synonymRules = await loadSynonymRulesFromDb(db);
+  console.log(`loaded ${synonymRules.length} synonym rules from postgres`);
   const es = createEsClient(esUrl);
   const started = Date.now();
   const indexed = await indexProducts(es, index, products, {
     embed,
+    synonymRules: synonymRules.length > 0 ? synonymRules : undefined,
     onEmbedProgress: (done, total) => {
       if (done % 5120 === 0 || done === total) {
         const secs = ((Date.now() - started) / 1000).toFixed(0);

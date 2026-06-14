@@ -8,6 +8,7 @@ import {
 import { extractColor, extractMaterial } from "../wands/features.ts";
 import { createEsClient } from "./client.ts";
 import { indexShopDocuments } from "./indexer.ts";
+import { loadSynonymRulesFromDb } from "./synonyms-db.ts";
 
 const databaseUrl =
   process.env.DATABASE_URL ?? "postgres://nordhem:nordhem@localhost:5432/nordhem";
@@ -43,7 +44,11 @@ try {
   // Pass --embed to store e5 vectors so the storefront can offer semantic and
   // hybrid modes; the shop index is small (~hundreds), so this is quick.
   const embed = process.argv.includes("--embed");
-  const indexed = await indexShopDocuments(es, index, docs, { embed });
+  const synonymRules = await loadSynonymRulesFromDb(db);
+  const indexed = await indexShopDocuments(es, index, docs, {
+    embed,
+    synonymRules: synonymRules.length > 0 ? synonymRules : undefined,
+  });
   console.log(`indexed ${indexed} products into "${index}"${embed ? " with embeddings" : ""}`);
 } finally {
   await close();

@@ -3,6 +3,9 @@ import type { Db } from "@nordhem/db";
 import Fastify, { type FastifyInstance } from "fastify";
 import { makeEvalDataCache } from "./eval/eval-data.ts";
 import { runEval, trainTestSplit } from "./eval/harness.ts";
+import { loadCuration } from "./es/curations-db.ts";
+import { reloadSynonyms } from "./es/indexer.ts";
+import { loadSynonymRulesFromDb } from "./es/synonyms-db.ts";
 import { autocompleteProducts } from "./search/autocomplete.ts";
 import { searchProducts, type SearchMode } from "./search/search.ts";
 import { buildSearchBody, coerceRankingConfig, priceBandBounds, type SortOption } from "./search/query.ts";
@@ -92,9 +95,12 @@ export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps):
       // A selected price band (?price=500-1000) maps to cents bounds; raw
       // priceMin/priceMax remain available for direct API callers.
       const band = priceBandBounds(req.query.price);
+      // Curations are a shop-scope editor feature; read per query (Step 9).
+      const curation = isShop && db ? await loadCuration(db, query) : undefined;
       return searchProducts(es, isShop ? shopIndex : index, query, {
         facets: isShop,
         mode: toMode(req.query.mode),
+        ...(curation && { curation }),
         sort: toSort(req.query.sort),
         page: toPage(req.query.page),
         size: toSize(req.query.size),
@@ -181,6 +187,51 @@ export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps):
       mrr: result.mrr,
       recall: result.recall,
       config: ranking,
+    };
+  });
+
+  // Editor tools (Step 9): apply the current Postgres synonym rules to the live
+  // indexes' search analyzer with no reindex (synonyms are query-time). This is
+  // what the studio "Apply to search" button calls after an editor saves a rule.
+  app.post("/synonyms/reload", async (_req, reply) => {
+    if (!db) {
+      return reply.code(503).send({ error: "synonyms reload requires a database connection" });
+    }
+    const rules = await loadSynonymRulesFromDb(db);
+    const reloaded: string[] = [];
+    for (const target of [index, shopIndex]) {
+      if (await es.indices.exists({ index: target })) {
+        await reloadSynonyms(es, target, rules);
+        reloaded.push(target);
+      }
+    }
+    return { applied: rules.length, indexes: reloaded };
+  });
+
+  // Benchmark-before-apply (Step 9): score the CURRENT saved synonym rules
+  // against the judged set on the benchmark index, so an editor can see the
+  // nDCG impact before pushing them to the storefront. Reloads only the
+  // benchmark index analyzer (the lab corpus, not the shop) and evals a sample.
+  app.post("/synonyms/impact", async (_req, reply) => {
+    if (!db || !evalData) {
+      return reply.code(503).send({ error: "impact requires a database connection" });
+    }
+    const rules = await loadSynonymRulesFromDb(db);
+    await reloadSynonyms(es, index, rules);
+    const { queries, judgmentsByQueryId } = await evalData();
+    const train = new Set(trainTestSplit(queries.map((q) => q.queryId)).train);
+    const pool = queries.filter((q) => train.has(q.queryId)).slice(0, 120);
+    const search = async (text: string): Promise<number[]> => {
+      const res = await es.search<unknown>({ index, ...buildSearchBody(text, 100, {}) });
+      return res.hits.hits.map((h) => Number(h._id)).filter((id) => Number.isFinite(id));
+    };
+    const result = await runEval({ queries: pool, judgmentsByQueryId, search });
+    return {
+      queryCount: result.queryCount,
+      ndcg: result.ndcg,
+      mrr: result.mrr,
+      recall: result.recall,
+      ruleCount: rules.length,
     };
   });
 

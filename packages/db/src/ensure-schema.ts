@@ -201,4 +201,39 @@ export async function ensureSchema(db: Db): Promise<void> {
       PRIMARY KEY (run_id, query_id)
     )
   `);
+
+  // Step 9 editor tools: synonym rules. Mirror schema.ts exactly.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS synonym_rules (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      kind text NOT NULL,
+      terms text NOT NULL,
+      maps_to text,
+      enabled boolean NOT NULL DEFAULT true,
+      source text NOT NULL DEFAULT 'manual',
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
+  // Step 9 editor tools: per-query curations (pin/hide). Mirror schema.ts.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS curations (
+      query text PRIMARY KEY,
+      pinned jsonb NOT NULL DEFAULT '[]'::jsonb,
+      hidden jsonb NOT NULL DEFAULT '[]'::jsonb,
+      updated_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
+  // Step 9 editor tools: change history (audit log). Mirror schema.ts.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS change_log (
+      id serial PRIMARY KEY,
+      entity text NOT NULL,
+      action text NOT NULL,
+      summary text NOT NULL,
+      detail jsonb,
+      actor text NOT NULL DEFAULT 'editor',
+      created_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
 }
