@@ -15,7 +15,20 @@ export const metadata: Metadata = { title: "Search" };
 
 type RawParams = Record<string, string | string[] | undefined>;
 const LIST_KEYS = ["category", "color", "material"] as const;
-const SINGLE_KEYS = ["price", "sort", "page"] as const;
+const SINGLE_KEYS = ["price", "sort", "page", "mode"] as const;
+
+// The storefront retrieval toggle (Step 8). Labels are shopper-friendly; the
+// hint names the engineering underneath for anyone curious.
+const MODES = [
+  { value: "lexical", label: "Keyword", hint: "classic word match (BM25)" },
+  { value: "semantic", label: "Meaning", hint: "vector similarity (e5 + kNN)" },
+  { value: "hybrid", label: "Hybrid", hint: "keyword and meaning fused (RRF)" },
+] as const;
+
+function modeOf(params: RawParams): string {
+  const m = params.mode;
+  return typeof m === "string" && MODES.some((x) => x.value === m) ? m : "lexical";
+}
 
 /** The public querystring the browser shows — what the facet links operate on. */
 function publicQuery(query: string, params: RawParams): string {
@@ -96,6 +109,35 @@ function Marked({ text }: { text: string }) {
   );
 }
 
+/** Segmented control switching the retrieval mode, preserving q and facets. */
+function ModeToggle({ query, params }: { query: string; params: RawParams }) {
+  const current = modeOf(params);
+  return (
+    <div className="mt-5 inline-flex rounded-md border border-line bg-card p-1 text-[13px]">
+      {MODES.map((m) => {
+        const usp = new URLSearchParams(publicQuery(query, params));
+        usp.set("mode", m.value);
+        usp.delete("page"); // a new ranking starts at page 1
+        const active = m.value === current;
+        return (
+          <Link
+            key={m.value}
+            href={`/search?${usp.toString()}`}
+            title={m.hint}
+            aria-current={active ? "true" : undefined}
+            className={
+              "rounded-xs px-3.5 py-1.5 transition-colors " +
+              (active ? "bg-pine font-semibold text-white" : "text-ink-muted hover:text-ink")
+            }
+          >
+            {m.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 function HitCard({ hit }: { hit: SearchHit }) {
   return (
     <Link
@@ -172,6 +214,8 @@ export default async function SearchPage({
         </p>
       )}
 
+      {query && <ModeToggle query={query} params={params} />}
+
       {unavailable && (
         <div className="mt-8 max-w-2xl rounded-md bg-linen px-5 py-4 text-[15px]">
           Search is offline right now (the engine runs on a real machine that
@@ -210,7 +254,7 @@ export default async function SearchPage({
       )}
 
       {results && results.total > 0 && (
-        <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-6 lg:grid-cols-[14rem_1fr]">
+        <div className={`mt-8 grid grid-cols-1 gap-x-10 gap-y-6 ${results.facets ? "lg:grid-cols-[14rem_1fr]" : ""}`}>
           {results.facets && (
             <div className="lg:sticky lg:top-24 lg:self-start">
               <FacetSidebar facets={results.facets} />

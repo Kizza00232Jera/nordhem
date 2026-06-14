@@ -40,8 +40,11 @@ try {
     color: extractColor(features),
     material: extractMaterial(features),
   }));
-  const indexed = await indexShopDocuments(es, index, docs);
-  console.log(`indexed ${indexed} products into "${index}"`);
+  // Pass --embed to store e5 vectors so the storefront can offer semantic and
+  // hybrid modes; the shop index is small (~hundreds), so this is quick.
+  const embed = process.argv.includes("--embed");
+  const indexed = await indexShopDocuments(es, index, docs, { embed });
+  console.log(`indexed ${indexed} products into "${index}"${embed ? " with embeddings" : ""}`);
 } finally {
   await close();
 }
