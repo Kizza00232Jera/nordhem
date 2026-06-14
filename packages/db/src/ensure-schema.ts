@@ -224,4 +224,16 @@ export async function ensureSchema(db: Db): Promise<void> {
       updated_at timestamp NOT NULL DEFAULT now()
     )
   `);
+  // Step 9 editor tools: change history (audit log). Mirror schema.ts.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS change_log (
+      id serial PRIMARY KEY,
+      entity text NOT NULL,
+      action text NOT NULL,
+      summary text NOT NULL,
+      detail jsonb,
+      actor text NOT NULL DEFAULT 'editor',
+      created_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
 }

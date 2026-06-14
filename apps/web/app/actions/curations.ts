@@ -1,5 +1,6 @@
 "use server";
 
+import { logChange } from "../../lib/change-log-repo";
 import {
   cardsByIds,
   getCuration,
@@ -19,6 +20,11 @@ export type SaveResult = { ok: true } | { ok: false; error: string };
 export async function saveCurationAction(query: string, data: CurationData): Promise<SaveResult> {
   if (!query.trim()) return { ok: false, error: "Enter a query to curate." };
   await saveCuration(query, data);
+  const summary =
+    data.pinned.length === 0 && data.hidden.length === 0
+      ? `Cleared curation for "${query.trim()}"`
+      : `Curated "${query.trim()}": ${data.pinned.length} pinned, ${data.hidden.length} hidden`;
+  await logChange("curation", "update", summary, data);
   return { ok: true };
 }
 

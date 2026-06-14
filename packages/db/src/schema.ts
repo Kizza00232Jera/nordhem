@@ -340,3 +340,23 @@ export const curations = pgTable("curations", {
   hidden: jsonb("hidden").$type<number[]>().notNull().default([]),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * Change history (Step 9): an append-only audit trail of editor actions on
+ * synonyms and curations (who/when/what), so the studio can show what changed
+ * and when, distinguishing edits from the "apply/publish" that pushes them live.
+ */
+export const changeLog = pgTable("change_log", {
+  id: serial("id").primaryKey(),
+  /** 'synonym' | 'curation' | 'apply'. */
+  entity: text("entity").notNull(),
+  /** 'create' | 'update' | 'delete' | 'apply'. */
+  action: text("action").notNull(),
+  /** Human-readable one-liner shown in the history ledger. */
+  summary: text("summary").notNull(),
+  /** Optional structured before/after or metrics. */
+  detail: jsonb("detail"),
+  /** Who made the change; single-operator studio, so defaults to 'editor'. */
+  actor: text("actor").notNull().default("editor"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

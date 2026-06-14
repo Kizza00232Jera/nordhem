@@ -5,6 +5,7 @@ import {
   applySynonymsAction,
   createSynonymAction,
   deleteSynonymAction,
+  synonymsImpactAction,
   toggleSynonymAction,
   updateSynonymAction,
 } from "../actions/synonyms";
@@ -45,6 +46,7 @@ export function SynonymsEditor({ rules }: { rules: SynonymRow[] }) {
   const [filter, setFilter] = useState("");
   const [drawer, setDrawer] = useState<DrawerState>(null);
   const [apply, setApply] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+  const [impact, setImpact] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
   const q = filter.trim().toLowerCase();
@@ -64,6 +66,21 @@ export function SynonymsEditor({ rules }: { rules: SynonymRow[] }) {
     });
   }
 
+  function onImpact() {
+    setImpact(null);
+    startTransition(async () => {
+      const r = await synonymsImpactAction();
+      setImpact(
+        r.ok
+          ? {
+              tone: "ok",
+              text: `Benchmark with these synonyms: nDCG@10 ${r.ndcg.toFixed(4)}, MRR ${r.mrr.toFixed(4)}, recall ${(r.recall * 100).toFixed(1)}% on ${r.queryCount} judged queries (lexical baseline nDCG ~0.6615). Test before you apply.`,
+            }
+          : { tone: "err", text: r.error },
+      );
+    });
+  }
+
   return (
     <div className="mt-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -76,6 +93,14 @@ export function SynonymsEditor({ rules }: { rules: SynonymRow[] }) {
           className="h-9 w-64 rounded-xs border border-line bg-card px-3 text-[14px] focus:outline-none focus:ring-2 focus:ring-pine"
         />
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onImpact}
+            disabled={pending}
+            className="rounded-xs border border-line px-4 py-2 text-[14px] font-medium hover:border-ink disabled:opacity-50"
+          >
+            {pending ? "Scoring…" : "Check impact"}
+          </button>
           <button
             type="button"
             onClick={onApply}
@@ -96,6 +121,9 @@ export function SynonymsEditor({ rules }: { rules: SynonymRow[] }) {
 
       {apply && (
         <p className={`mt-3 text-[13px] ${apply.tone === "ok" ? "text-pine" : "text-error"}`}>{apply.text}</p>
+      )}
+      {impact && (
+        <p className={`mt-2 text-[13px] ${impact.tone === "ok" ? "text-ink" : "text-error"}`}>{impact.text}</p>
       )}
       <p className="mt-2 text-[12.5px] text-ink-muted">
         Editing a rule saves it to the database. <b>Apply to search</b> hot-reloads the rules into the live

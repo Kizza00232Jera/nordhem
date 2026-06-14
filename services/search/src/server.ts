@@ -208,5 +208,32 @@ export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps):
     return { applied: rules.length, indexes: reloaded };
   });
 
+  // Benchmark-before-apply (Step 9): score the CURRENT saved synonym rules
+  // against the judged set on the benchmark index, so an editor can see the
+  // nDCG impact before pushing them to the storefront. Reloads only the
+  // benchmark index analyzer (the lab corpus, not the shop) and evals a sample.
+  app.post("/synonyms/impact", async (_req, reply) => {
+    if (!db || !evalData) {
+      return reply.code(503).send({ error: "impact requires a database connection" });
+    }
+    const rules = await loadSynonymRulesFromDb(db);
+    await reloadSynonyms(es, index, rules);
+    const { queries, judgmentsByQueryId } = await evalData();
+    const train = new Set(trainTestSplit(queries.map((q) => q.queryId)).train);
+    const pool = queries.filter((q) => train.has(q.queryId)).slice(0, 120);
+    const search = async (text: string): Promise<number[]> => {
+      const res = await es.search<unknown>({ index, ...buildSearchBody(text, 100, {}) });
+      return res.hits.hits.map((h) => Number(h._id)).filter((id) => Number.isFinite(id));
+    };
+    const result = await runEval({ queries: pool, judgmentsByQueryId, search });
+    return {
+      queryCount: result.queryCount,
+      ndcg: result.ndcg,
+      mrr: result.mrr,
+      recall: result.recall,
+      ruleCount: rules.length,
+    };
+  });
+
   return app;
 }
