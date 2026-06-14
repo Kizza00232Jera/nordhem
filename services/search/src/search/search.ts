@@ -2,6 +2,7 @@ import type { Client, estypes } from "@elastic/elasticsearch";
 import type { FacetBucket, PriceBucket, SearchFacets, SearchHit, SearchResponse } from "@nordhem/shared";
 import type { ProductDocument, ShopDocument } from "../es/indexer.ts";
 import { embedQuery } from "../embed/embed.ts";
+import { curateIds, curationActive, type Curation } from "./curate.ts";
 import { buildSearchBody, type SearchFilters, type SortOption } from "./query.ts";
 import { hybridProductIds, knnProductIds } from "./semantic.ts";
 
@@ -25,6 +26,8 @@ export interface SearchOptions {
   sort?: SortOption;
   /** Retrieval strategy; defaults to lexical (BM25), the original behaviour. */
   mode?: SearchMode;
+  /** Per-query curation to pin/hide products (Step 9); applied on page 1. */
+  curation?: Curation;
 }
 
 /** Read a terms aggregation's buckets into the contract's value/count pairs. */
@@ -124,20 +127,15 @@ async function rankedIdSearch(
   };
 }
 
-export async function searchProducts(
+/** The lexical (BM25) path: rich hits with highlights, facets, did-you-mean. */
+async function lexicalSearch(
   es: Client,
   index: string,
   query: string,
-  opts: SearchOptions = {},
+  opts: SearchOptions,
+  size: number,
+  from: number,
 ): Promise<SearchResponse> {
-  const size = opts.size ?? DEFAULT_SIZE;
-  const from = Math.max(0, ((opts.page ?? 1) - 1) * size);
-  const mode = opts.mode ?? "lexical";
-
-  if (mode !== "lexical") {
-    return rankedIdSearch(es, index, query, mode, from, size);
-  }
-
   const res = await es.search<AnyProductDocument>({
     index,
     ...buildSearchBody(query, size, {
@@ -177,4 +175,54 @@ export async function searchProducts(
     tookMs: res.took,
     hits: res.hits.hits.map(toSearchHit),
   };
+}
+
+/**
+ * Apply a curation to a page of hits: reorder by curateIds (pinned first, hidden
+ * dropped), then hydrate any pinned product the ranking never returned via mget.
+ * Curations are read per-query at search time, so a saved change takes effect on
+ * the next search with no reindex and no analyzer reload.
+ */
+async function applyCuration(
+  es: Client,
+  index: string,
+  hits: SearchHit[],
+  curation: Curation,
+  size: number,
+): Promise<SearchHit[]> {
+  const order = curateIds(hits.map((h) => Number(h.id)), curation);
+  const byId = new Map(hits.map((h) => [Number(h.id), h]));
+  const missing = order.filter((id) => !byId.has(id));
+  if (missing.length) {
+    const docs = (await es.mget<AnyProductDocument>({ index, ids: missing.map(String) })).docs;
+    for (const d of docs) {
+      if ("found" in d && d.found) byId.set(Number(d._id), toSearchHit(d));
+    }
+  }
+  return order
+    .map((id) => byId.get(id))
+    .filter((h): h is SearchHit => h !== undefined)
+    .slice(0, size);
+}
+
+export async function searchProducts(
+  es: Client,
+  index: string,
+  query: string,
+  opts: SearchOptions = {},
+): Promise<SearchResponse> {
+  const size = opts.size ?? DEFAULT_SIZE;
+  const from = Math.max(0, ((opts.page ?? 1) - 1) * size);
+  const mode = opts.mode ?? "lexical";
+
+  const response =
+    mode !== "lexical"
+      ? await rankedIdSearch(es, index, query, mode, from, size)
+      : await lexicalSearch(es, index, query, opts, size, from);
+
+  // Curations override ranking, on page 1 only (pinned products belong up top).
+  if (from === 0 && curationActive(opts.curation)) {
+    return { ...response, hits: await applyCuration(es, index, response.hits, opts.curation, size) };
+  }
+  return response;
 }

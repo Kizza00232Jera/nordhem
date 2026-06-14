@@ -325,3 +325,18 @@ export const synonymRules = pgTable("synonym_rules", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+/**
+ * A per-query curation (Step 9): an editor pins products to the top and/or
+ * hides products for one exact query. Unlike synonyms (analyzer, needs reload),
+ * curations are read at query time, so a change takes effect on the next search
+ * with no reindex and no reload. One row per normalized (trim+lowercase) query.
+ */
+export const curations = pgTable("curations", {
+  query: text("query").primaryKey(),
+  /** Ordered product ids forced to the top. */
+  pinned: jsonb("pinned").$type<number[]>().notNull().default([]),
+  /** Product ids removed from the results. */
+  hidden: jsonb("hidden").$type<number[]>().notNull().default([]),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

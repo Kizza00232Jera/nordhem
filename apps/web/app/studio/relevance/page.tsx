@@ -26,6 +26,12 @@ export default async function RelevanceLabPage() {
             Synonyms
           </Link>
           <Link
+            href="/studio/relevance/curations"
+            className="rounded-xs border border-line px-4 py-2 text-[14px] font-medium hover:border-ink"
+          >
+            Curations
+          </Link>
+          <Link
             href="/studio/relevance/explain"
             className="rounded-xs border border-line px-4 py-2 text-[14px] font-medium hover:border-ink"
           >

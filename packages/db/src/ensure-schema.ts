@@ -215,4 +215,13 @@ export async function ensureSchema(db: Db): Promise<void> {
       updated_at timestamp NOT NULL DEFAULT now()
     )
   `);
+  // Step 9 editor tools: per-query curations (pin/hide). Mirror schema.ts.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS curations (
+      query text PRIMARY KEY,
+      pinned jsonb NOT NULL DEFAULT '[]'::jsonb,
+      hidden jsonb NOT NULL DEFAULT '[]'::jsonb,
+      updated_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
 }

@@ -3,6 +3,7 @@ import type { Db } from "@nordhem/db";
 import Fastify, { type FastifyInstance } from "fastify";
 import { makeEvalDataCache } from "./eval/eval-data.ts";
 import { runEval, trainTestSplit } from "./eval/harness.ts";
+import { loadCuration } from "./es/curations-db.ts";
 import { reloadSynonyms } from "./es/indexer.ts";
 import { loadSynonymRulesFromDb } from "./es/synonyms-db.ts";
 import { autocompleteProducts } from "./search/autocomplete.ts";
@@ -94,9 +95,12 @@ export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps):
       // A selected price band (?price=500-1000) maps to cents bounds; raw
       // priceMin/priceMax remain available for direct API callers.
       const band = priceBandBounds(req.query.price);
+      // Curations are a shop-scope editor feature; read per query (Step 9).
+      const curation = isShop && db ? await loadCuration(db, query) : undefined;
       return searchProducts(es, isShop ? shopIndex : index, query, {
         facets: isShop,
         mode: toMode(req.query.mode),
+        ...(curation && { curation }),
         sort: toSort(req.query.sort),
         page: toPage(req.query.page),
         size: toSize(req.query.size),
