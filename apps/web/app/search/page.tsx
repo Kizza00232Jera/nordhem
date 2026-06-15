@@ -1,4 +1,4 @@
-import { SearchResponseSchema, type SearchHit, type SearchResponse } from "@nordhem/shared";
+import type { SearchHit, SearchResponse } from "@nordhem/shared";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,9 +9,9 @@ import { TrackedLink } from "../components/tracked-link";
 import { goToPage } from "../../lib/facet-url";
 import { formatPrice } from "../../lib/format";
 import { splitMarked } from "../../lib/highlight";
+import { searchShopWithFallback } from "../../lib/search-source";
 import { clickPosition } from "../../lib/track";
 
-const SEARCH_API_URL = process.env.SEARCH_API_URL ?? "http://localhost:3001";
 const PAGE_SIZE = 24;
 
 export const metadata: Metadata = { title: "Search" };
@@ -54,14 +54,18 @@ function publicQuery(query: string, params: RawParams): string {
   return usp.toString();
 }
 
-async function search(query: string, params: RawParams): Promise<SearchResponse> {
+async function runSearch(
+  query: string,
+  params: RawParams,
+): Promise<{ response: SearchResponse; lite: boolean }> {
   const usp = new URLSearchParams(publicQuery(query, params));
   usp.set("scope", "shop");
   usp.set("size", String(PAGE_SIZE));
-  usp.set("mode", modeOf(params)); // explicit, so a no-mode URL still gets the hybrid default
-  const res = await fetch(`${SEARCH_API_URL}/search?${usp.toString()}`);
-  if (!res.ok) throw new Error(`Search service responded ${res.status}`);
-  return SearchResponseSchema.parse(await res.json());
+  usp.set("mode", modeOf(params)); // explicit, so a no-mode URL still gets the default
+  const page = Math.max(1, Number(params.page) || 1);
+  // The circuit breaker tries the full Elasticsearch engine, then degrades to
+  // Postgres full-text search ("lite mode") if the PC service is unreachable.
+  return searchShopWithFallback(query, usp.toString(), { page, size: PAGE_SIZE });
 }
 
 function Pagination({
@@ -203,12 +207,14 @@ export default async function SearchPage({
 
   let results: SearchResponse | null = null;
   let unavailable = false;
+  let lite = false;
   if (query) {
     try {
-      results = await search(query, params);
+      const r = await runSearch(query, params);
+      results = r.response;
+      lite = r.lite;
     } catch {
-      // The proper circuit breaker + Postgres fallback is step 10;
-      // until then the page degrades honestly.
+      // Both the full engine and the Postgres fallback are unreachable.
       unavailable = true;
     }
   }
@@ -227,12 +233,23 @@ export default async function SearchPage({
         </p>
       )}
 
-      {query && <ModeToggle query={query} params={params} />}
+      {query && !lite && <ModeToggle query={query} params={params} />}
+
+      {lite && (
+        <div className="mt-5 max-w-2xl rounded-md border border-amber/40 bg-amber/10 px-5 py-4 text-[14px]">
+          <span className="font-semibold">Lite mode.</span> The full search engine runs on a real
+          machine that is sometimes asleep, so these results come from a Postgres full-text
+          fallback. Filters, synonyms and semantic results are paused until it is back.{" "}
+          <Link href="/status" className="text-pine underline">
+            Status
+          </Link>
+        </div>
+      )}
 
       {results && (
         <TrackSearch
           query={results.query}
-          mode={modeOf(params) as "lexical" | "semantic" | "hybrid"}
+          mode={lite ? "lexical" : (modeOf(params) as "lexical" | "semantic" | "hybrid")}
           resultCount={results.total}
           latencyMs={Math.round(results.tookMs)}
         />
