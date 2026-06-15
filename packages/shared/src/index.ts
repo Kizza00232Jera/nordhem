@@ -174,3 +174,39 @@ export type CartLineView = z.infer<typeof CartLineViewSchema>;
 export type CartView = z.infer<typeof CartViewSchema>;
 export type OrderItemView = z.infer<typeof OrderItemViewSchema>;
 export type OrderSummary = z.infer<typeof OrderSummarySchema>;
+
+// ---------------------------------------------------------------------------
+// Step 10 first-party search telemetry. The storefront fires these at the
+// /api/events sink (sendBeacon); this schema is the trust boundary, reused by
+// the client builder and the server route. Stored in Postgres so the analytics
+// dashboards keep recording even in lite mode (PC search service offline).
+// ---------------------------------------------------------------------------
+
+const eventQuery = z.string().trim().min(1).max(200);
+
+/** A search was run: what was typed, which engine mode, how many hits, how long. */
+export const SearchPerformedSchema = z.object({
+  type: z.literal("search"),
+  query: eventQuery,
+  mode: z.enum(["lexical", "semantic", "hybrid"]),
+  resultCount: z.number().int().nonnegative(),
+  latencyMs: z.number().int().nonnegative().optional(),
+});
+
+/** A result was clicked: which product, at which 1-based rank, for which query. */
+export const ResultClickedSchema = z.object({
+  type: z.literal("click"),
+  query: eventQuery,
+  productId: z.number().int(),
+  position: z.number().int().positive(),
+});
+
+/** One telemetry event, discriminated on `type` so each shape stays exact. */
+export const SearchEventSchema = z.discriminatedUnion("type", [
+  SearchPerformedSchema,
+  ResultClickedSchema,
+]);
+
+export type SearchPerformed = z.infer<typeof SearchPerformedSchema>;
+export type ResultClicked = z.infer<typeof ResultClickedSchema>;
+export type SearchEventInput = z.infer<typeof SearchEventSchema>;

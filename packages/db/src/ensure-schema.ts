@@ -236,4 +236,26 @@ export async function ensureSchema(db: Db): Promise<void> {
       created_at timestamp NOT NULL DEFAULT now()
     )
   `);
+
+  // Step 10 analytics: first-party search telemetry. Mirror schema.ts exactly.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS search_events (
+      id serial PRIMARY KEY,
+      type text NOT NULL,
+      query text NOT NULL,
+      mode text,
+      result_count integer,
+      zero_result boolean,
+      product_id integer,
+      position integer,
+      latency_ms integer,
+      source text NOT NULL DEFAULT 'live',
+      created_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS search_events_type_idx ON search_events (type)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS search_events_query_idx ON search_events (query)`);
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS search_events_created_idx ON search_events (created_at)`,
+  );
 }

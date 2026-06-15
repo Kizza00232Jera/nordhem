@@ -4,4 +4,17 @@ export * from "./schema.ts";
 
 // Query operators re-exported so consumers don't need their own
 // drizzle-orm dependency (one version, owned here).
-export { and, asc, desc, eq, ilike, inArray, isNull, notInArray, sql } from "drizzle-orm";
+export {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  notInArray,
+  sql,
+} from "drizzle-orm";
