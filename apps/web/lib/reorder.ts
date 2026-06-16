@@ -26,3 +26,23 @@ export function moveUp<T>(arr: T[], index: number): T[] {
 export function moveDown<T>(arr: T[], index: number): T[] {
   return moveItem(arr, index, index + 1);
 }
+
+/**
+ * Move `dragId` so it lands just before/after `targetId`. Used by drag-and-drop:
+ * the hovered row is the target, and the cursor's half (above/below its midpoint)
+ * picks `place`, so the same call drives both the live drop-placeholder preview
+ * and the committed order. No-op (same ref) if either id is missing or the drag
+ * id is the target.
+ */
+export function reorderByTarget<T>(
+  arr: T[],
+  dragId: T,
+  targetId: T,
+  place: "before" | "after",
+): T[] {
+  if (dragId === targetId) return arr;
+  if (!arr.includes(dragId) || !arr.includes(targetId)) return arr;
+  const without = arr.filter((x) => x !== dragId);
+  const idx = without.indexOf(targetId) + (place === "after" ? 1 : 0);
+  return [...without.slice(0, idx), dragId, ...without.slice(idx)];
+}

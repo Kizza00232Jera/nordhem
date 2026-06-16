@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { type DragEvent, useState, useTransition } from "react";
 import {
   cardsByIdsAction,
   getCurationAction,
@@ -10,8 +10,13 @@ import {
 } from "../actions/curations";
 import type { CurationSummary, ProductCard } from "../../lib/curations-repo";
 import { formatPrice } from "../../lib/format";
-import { moveDown, moveItem, moveUp } from "../../lib/reorder";
+import { moveDown, moveUp, reorderByTarget } from "../../lib/reorder";
 import { ProductThumb } from "./product-thumb";
+
+const sameOrder = (a: number[], b: number[]) =>
+  a.length === b.length && a.every((x, i) => x === b[i]);
+const sameSet = (a: number[], b: number[]) =>
+  a.length === b.length && new Set(a).size === new Set([...a, ...b]).size;
 
 const curationDateFmt = new Intl.DateTimeFormat("en-IE", { dateStyle: "medium" });
 
@@ -50,7 +55,12 @@ export function CurationsEditor({ existing = [] }: { existing?: CurationSummary[
   const [pickResults, setPickResults] = useState<number[]>([]);
   const [view, setView] = useState<"after" | "before">("after");
   const [status, setStatus] = useState<string | null>(null);
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  // The last saved state, to tell whether there are unsaved edits.
+  const [savedPinned, setSavedPinned] = useState<number[]>([]);
+  const [savedHidden, setSavedHidden] = useState<number[]>([]);
+  // Drag state: the id being dragged, and the row + half it is hovering over.
+  const [draggedId, setDraggedId] = useState<number | null>(null);
+  const [overTarget, setOverTarget] = useState<{ id: number; place: "before" | "after" } | null>(null);
   const [pending, startTransition] = useTransition();
 
   const cardOf = (id: number): ProductCard => cards.get(id) ?? { id, name: `#${id}`, slug: null, priceCents: null, imageThumbUrl: null };
@@ -74,6 +84,8 @@ export function CurationsEditor({ existing = [] }: { existing?: CurationSummary[
       setBaseline(hits.map((h) => h.id));
       setPinned(cur.pinned);
       setHidden(cur.hidden);
+      setSavedPinned(cur.pinned);
+      setSavedHidden(cur.hidden);
       setPickResults([]);
       setPickQuery("");
       setLoaded(q);
@@ -104,8 +116,25 @@ export function CurationsEditor({ existing = [] }: { existing?: CurationSummary[
   // Arrow buttons are the accessible, keyboard path; drag is a pointer add-on.
   const moveUpAt = (i: number) => setPinned((p) => moveUp(p, i));
   const moveDownAt = (i: number) => setPinned((p) => moveDown(p, i));
-  const onDrop = (to: number) =>
-    setPinned((p) => (dragIndex === null ? p : moveItem(p, dragIndex, to)));
+
+  // While dragging, the list shows where the item WOULD land: the dragged row is
+  // a skeleton at the target slot, the rest reflow around it. Same call commits.
+  const onRowDragOver = (e: DragEvent, id: number) => {
+    e.preventDefault();
+    if (id === draggedId) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const place: "before" | "after" = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    setOverTarget((t) => (t && t.id === id && t.place === place ? t : { id, place }));
+  };
+  const dropPreview =
+    draggedId != null && overTarget
+      ? reorderByTarget(pinned, draggedId, overTarget.id, overTarget.place)
+      : pinned;
+  const commitDrop = () => {
+    setPinned(dropPreview);
+    setDraggedId(null);
+    setOverTarget(null);
+  };
 
   function save() {
     if (!loaded) return;
@@ -113,11 +142,18 @@ export function CurationsEditor({ existing = [] }: { existing?: CurationSummary[
     startTransition(async () => {
       const res = await saveCurationAction(loaded, { pinned, hidden });
       setStatus(res.ok ? "Saved. Live on the next search for this query (no reindex, no reload)." : res.error);
-      // Refresh the "existing curations" list (server data) without losing the
-      // editor's in-progress state.
-      if (res.ok) router.refresh();
+      if (res.ok) {
+        // Mark the current state as the new saved baseline (clears the dirty flag).
+        setSavedPinned(pinned);
+        setSavedHidden(hidden);
+        // Refresh the "existing curations" list (server data) without losing the
+        // editor's in-progress state.
+        router.refresh();
+      }
     });
   }
+
+  const dirty = loaded != null && (!sameOrder(pinned, savedPinned) || !sameSet(hidden, savedHidden));
 
   const hiddenSet = new Set(hidden);
   const pinnedSet = new Set(pinned);
@@ -141,11 +177,6 @@ export function CurationsEditor({ existing = [] }: { existing?: CurationSummary[
         <button type="button" onClick={() => load()} disabled={pending} className="h-9 rounded-xs bg-pine px-4 text-[14px] font-semibold text-white hover:bg-pine-deep disabled:opacity-50">
           {pending ? "Loading…" : "Curate"}
         </button>
-        {loaded && (
-          <button type="button" onClick={save} disabled={pending} className="h-9 rounded-xs border border-line px-4 text-[14px] font-medium hover:border-ink disabled:opacity-50">
-            Save curation
-          </button>
-        )}
       </div>
       {status && <p className="mt-3 text-[13px] text-pine">{status}</p>}
 
@@ -185,7 +216,24 @@ export function CurationsEditor({ existing = [] }: { existing?: CurationSummary[
         <div className="mt-6 grid gap-8 lg:grid-cols-2">
           {/* LEFT: the rule */}
           <section>
-            <h2 className="text-[15px] font-semibold">Curating &ldquo;{loaded}&rdquo;</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-[15px] font-semibold">Curating &ldquo;{loaded}&rdquo;</h2>
+              <div className="flex items-center gap-2.5">
+                {dirty && <span className="text-[12px] font-medium text-amber">Unsaved changes</span>}
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={pending || !dirty}
+                  className={
+                    dirty
+                      ? "h-8 rounded-xs bg-pine px-4 text-[13px] font-semibold text-white hover:bg-pine-deep disabled:opacity-50"
+                      : "h-8 rounded-xs border border-line px-4 text-[13px] font-medium text-ink-muted"
+                  }
+                >
+                  {dirty ? "Save changes" : "Saved"}
+                </button>
+              </div>
+            </div>
 
             <h3 className="mt-4 text-[13px] font-semibold text-ink-muted">
               Pinned to top ({pinned.length})
@@ -195,25 +243,49 @@ export function CurationsEditor({ existing = [] }: { existing?: CurationSummary[
                 </span>
               )}
             </h3>
-            <ol className="mt-1 rounded-md border border-line bg-card px-3">
-              {pinned.length === 0 ? (
+            <ol
+              className="mt-1 rounded-md border border-line bg-card px-3"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={commitDrop}
+            >
+              {dropPreview.length === 0 ? (
                 <p className="py-3 text-[13px] text-ink-muted">None pinned.</p>
               ) : (
-                pinned.map((id, i) => {
+                dropPreview.map((id, i) => {
+                  // The dragged row becomes a skeleton at the slot it would land in.
+                  if (draggedId === id && overTarget) {
+                    return (
+                      <li
+                        key={id}
+                        className="flex items-center gap-2 border-t border-line py-2 first:border-t-0"
+                        aria-hidden="true"
+                      >
+                        <span className="select-none px-0.5 text-transparent">⠿</span>
+                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-pine/40 text-[12px] font-semibold text-white">
+                          {i + 1}
+                        </span>
+                        <span className="size-10 shrink-0 animate-pulse rounded-xs bg-line" />
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <span className="block h-3 w-1/2 animate-pulse rounded bg-line" />
+                          <span className="block h-2.5 w-1/4 animate-pulse rounded bg-line" />
+                        </div>
+                      </li>
+                    );
+                  }
                   const card = cardOf(id);
                   return (
                     <li
                       key={id}
                       draggable
-                      onDragStart={() => setDragIndex(i)}
-                      onDragEnd={() => setDragIndex(null)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => {
-                        onDrop(i);
-                        setDragIndex(null);
+                      onDragStart={() => setDraggedId(id)}
+                      onDragEnd={() => {
+                        setDraggedId(null);
+                        setOverTarget(null);
                       }}
+                      onDragOver={(e) => onRowDragOver(e, id)}
+                      onDrop={commitDrop}
                       className={`flex items-center gap-2 border-t border-line py-2 first:border-t-0 ${
-                        dragIndex === i ? "opacity-40" : ""
+                        draggedId === id ? "opacity-40" : ""
                       }`}
                     >
                       <span className="cursor-grab select-none px-0.5 text-ink-muted" aria-hidden="true" title="Drag to reorder">
@@ -245,7 +317,7 @@ export function CurationsEditor({ existing = [] }: { existing?: CurationSummary[
                         type="button"
                         className={`${btn} disabled:opacity-30`}
                         onClick={() => moveDownAt(i)}
-                        disabled={i === pinned.length - 1}
+                        disabled={i === dropPreview.length - 1}
                         aria-label={`Move ${card.name} down`}
                       >
                         ↓
