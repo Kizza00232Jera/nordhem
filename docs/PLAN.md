@@ -66,12 +66,12 @@ KEY FILES: `packages/db/src/schema.ts` + `ensure-schema.ts`; `apps/web/lib/db.ts
 
 *Teaching: sessions & cookies; cart merge strategies; transactional order creation with Drizzle.*
 
-### ⬜ Step 6 — Relevance lab: measurement
-Benchmark index: full 42,994 products. Load 480 queries + 233k judgments. Eval harness in Node: run query set, compute nDCG@10, MRR, recall@100. Experiment runs stored in Postgres; studio UI: run experiment, per-query scores, worst-queries table, side-by-side run comparison.
+### ✅ Step 6 — Relevance lab: measurement (done 2026-06-13, v0.6)
+Benchmark index: full 42,994 products. Load 480 queries + 233k judgments. Eval harness in Node: run query set, compute nDCG@10, MRR, recall@100. Experiment runs stored in Postgres; studio UI: run experiment, per-query scores, worst-queries table, side-by-side run comparison. Shipped: `services/search/src/eval/*` harness + `apps/web/lib/eval-repo.ts` + `/studio/relevance` (run / `[runId]` / `compare`).
 *Teaching: nDCG with a worked numeric example; offline vs online evaluation; why eyeballing lies. The differentiator step.*
 
-### ⬜ Step 7 — Relevance lab: tuning
-Field-boost tuning UI (sliders → instant re-eval), popularity signals via function_score (rating_count/review_count), `_explain` score-breakdown visualizer, train/test query split (don't overfit judgments), "graduate winning config to shop index".
+### ✅ Step 7 — Relevance lab: tuning (done 2026-06-14, v0.7)
+Field-boost tuning UI (sliders → instant re-eval), popularity signals via function_score (rating_count/review_count), `_explain` score-breakdown visualizer, train/test query split (don't overfit judgments), "graduate winning config to shop index". Shipped: `RankingConfig` in `services/search/src/eval/configs.ts` + query.ts, `tune-cli.ts`, `/studio/relevance/explain` (`explain-view.tsx` + `actions/explain.ts`), tune controls.
 *Teaching: BM25 k1/b; boosting strategies; reading _explain; overfitting in relevance tuning.*
 
 ### ✅ Step 8 — Semantic & hybrid search (done 2026-06-14)
