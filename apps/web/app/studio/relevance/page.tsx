@@ -41,7 +41,7 @@ export default async function RelevanceLabPage() {
             href="/studio/relevance/suggestions"
             className="rounded-xs border border-line px-4 py-2 text-[14px] font-medium hover:border-ink"
           >
-            Assistant
+            Suggestions
           </Link>
           <Link
             href="/studio/relevance/history"
