@@ -399,3 +399,36 @@ export const searchEvents = pgTable(
     index("search_events_created_idx").on(t.createdAt),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Step 11a learning loop: the click-affinity table. The aggregate-clicks job
+// reads clicks from search_events, applies position-bias correction, and
+// REPLACES the rows here for a given source. The search service reads it per
+// query and turns affinity into a capped query-time boost. One row per
+// (query, product); source keeps a live-derived loop separate from a
+// synthetic-derived demo (the synthetic clicks encode the judgments, so a
+// synthetic loop evaluated on those judgments is circular — kept honest here).
+// ---------------------------------------------------------------------------
+
+export const clickAffinity = pgTable(
+  "click_affinity",
+  {
+    /** Normalised query the affinity belongs to. */
+    query: text("query").notNull(),
+    /** The product clicked for that query. */
+    productId: integer("product_id").notNull(),
+    /** Raw click count (for thresholds / transparency). */
+    observations: integer("observations").notNull(),
+    /** Sum of position-corrected click values, pre-normalisation. */
+    rawScore: doublePrecision("raw_score").notNull(),
+    /** rawScore normalised to (0,1] within the query — the boost signal. */
+    affinity: doublePrecision("affinity").notNull(),
+    /** Event source the affinity was computed from ('live' | 'synthetic'). */
+    source: text("source").notNull().default("live"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.query, t.productId] }),
+    index("click_affinity_query_idx").on(t.query),
+  ],
+);

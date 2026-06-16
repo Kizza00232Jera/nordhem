@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  affinityBoostWeight,
   aggregateAffinities,
   correctedClickValue,
+  DEFAULT_AFFINITY_BOOST,
   type ClickObservation,
 } from "../../src/analytics/affinity.ts";
 
@@ -81,5 +83,30 @@ describe("aggregateAffinities", () => {
 
   it("returns nothing for no clicks", () => {
     expect(aggregateAffinities([], { decay: 0.7 })).toEqual([]);
+  });
+});
+
+// The normalised affinity (0,1] becomes an additive function_score weight at
+// query time. We scale it up so a top result gets a meaningful bump, but CAP it
+// so no single learned signal can dominate BM25 — the guardrail against a
+// feedback loop entrenching whatever currently ranks first.
+describe("affinityBoostWeight", () => {
+  it("scales affinity into a boost weight", () => {
+    expect(affinityBoostWeight(1, { scale: 6, cap: 8 })).toBe(6);
+    expect(affinityBoostWeight(0.5, { scale: 6, cap: 8 })).toBe(3);
+  });
+
+  it("caps the weight so one signal can't dominate", () => {
+    expect(affinityBoostWeight(1, { scale: 10, cap: 8 })).toBe(8);
+  });
+
+  it("is zero for non-positive affinity", () => {
+    expect(affinityBoostWeight(0, { scale: 6, cap: 8 })).toBe(0);
+    expect(affinityBoostWeight(-1, { scale: 6, cap: 8 })).toBe(0);
+  });
+
+  it("has sane shipped defaults (scale and a cap above it)", () => {
+    expect(DEFAULT_AFFINITY_BOOST.cap).toBeGreaterThan(DEFAULT_AFFINITY_BOOST.scale);
+    expect(affinityBoostWeight(1)).toBe(DEFAULT_AFFINITY_BOOST.scale);
   });
 });

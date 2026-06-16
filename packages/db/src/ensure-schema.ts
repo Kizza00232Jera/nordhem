@@ -258,4 +258,21 @@ export async function ensureSchema(db: Db): Promise<void> {
   await db.execute(
     sql`CREATE INDEX IF NOT EXISTS search_events_created_idx ON search_events (created_at)`,
   );
+
+  // Step 11a learning loop: the click-affinity table. Mirror schema.ts exactly.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS click_affinity (
+      query text NOT NULL,
+      product_id integer NOT NULL,
+      observations integer NOT NULL,
+      raw_score double precision NOT NULL,
+      affinity double precision NOT NULL,
+      source text NOT NULL DEFAULT 'live',
+      updated_at timestamp NOT NULL DEFAULT now(),
+      PRIMARY KEY (query, product_id)
+    )
+  `);
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS click_affinity_query_idx ON click_affinity (query)`,
+  );
 }
