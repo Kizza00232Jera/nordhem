@@ -1,4 +1,4 @@
-import { asc, clickAffinity, desc, eq, productsRaw } from "@nordhem/db";
+import { asc, clickAffinity, desc, eq, productImages, productsRaw } from "@nordhem/db";
 import { db } from "./db";
 
 /**
@@ -18,11 +18,12 @@ export function boostWeight(affinity: number): number {
   return Math.min(affinity * BOOST.scale, BOOST.cap);
 }
 
-/** One click_affinity row joined to its product name (null if unknown). */
+/** One click_affinity row joined to its product name + thumb (null if unknown). */
 export interface AffinityRowRaw {
   query: string;
   productId: number;
   name: string | null;
+  imageThumbUrl: string | null;
   observations: number;
   affinity: number;
   source: string;
@@ -31,6 +32,7 @@ export interface AffinityRowRaw {
 export interface AffinityEntry {
   productId: number;
   name: string;
+  imageThumbUrl: string | null;
   observations: number;
   affinity: number;
   boost: number;
@@ -57,6 +59,7 @@ export function toQueryAffinities(rows: AffinityRowRaw[]): QueryAffinities[] {
     group.entries.push({
       productId: r.productId,
       name: r.name ?? `#${r.productId}`,
+      imageThumbUrl: r.imageThumbUrl,
       observations: r.observations,
       affinity: r.affinity,
       boost: boostWeight(r.affinity),
@@ -72,12 +75,14 @@ export async function listAffinities(source = "live"): Promise<QueryAffinities[]
       query: clickAffinity.query,
       productId: clickAffinity.productId,
       name: productsRaw.name,
+      imageThumbUrl: productImages.thumbUrl,
       observations: clickAffinity.observations,
       affinity: clickAffinity.affinity,
       source: clickAffinity.source,
     })
     .from(clickAffinity)
     .leftJoin(productsRaw, eq(clickAffinity.productId, productsRaw.productId))
+    .leftJoin(productImages, eq(clickAffinity.productId, productImages.productId))
     .where(eq(clickAffinity.source, source))
     .orderBy(asc(clickAffinity.query), desc(clickAffinity.affinity));
   return toQueryAffinities(rows);

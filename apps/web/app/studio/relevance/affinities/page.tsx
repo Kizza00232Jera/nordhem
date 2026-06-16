@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { affinityCounts, listAffinities } from "../../../../lib/affinity-repo";
+import { ProductThumb } from "../../../components/product-thumb";
 
 export const metadata: Metadata = { title: "Learning loop" };
 
@@ -89,7 +90,12 @@ export default async function AffinitiesPage({ searchParams }: Props) {
                 <tbody>
                   {group.entries.map((e) => (
                     <tr key={e.productId} className="border-t border-line">
-                      <td className="px-4 py-2.5">{e.name}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <ProductThumb src={e.imageThumbUrl} sizeClass="size-8" px={32} />
+                          <span className="min-w-0 truncate">{e.name}</span>
+                        </div>
+                      </td>
                       <td className="tnum px-4 py-2.5 text-right text-ink-muted">{e.observations}</td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2">

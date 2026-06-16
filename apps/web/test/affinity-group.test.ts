@@ -17,9 +17,9 @@ describe("boostWeight", () => {
 
 describe("toQueryAffinities", () => {
   const rows: AffinityRowRaw[] = [
-    { query: "oak bed", productId: 200, name: "Acacia Bed", observations: 1, affinity: 1, source: "live" },
-    { query: "oak bed", productId: 100, name: "Pine Bed", observations: 2, affinity: 0.5, source: "live" },
-    { query: "sofa", productId: 300, name: null, observations: 1, affinity: 1, source: "live" },
+    { query: "oak bed", productId: 200, name: "Acacia Bed", imageThumbUrl: "https://img/200.jpg", observations: 1, affinity: 1, source: "live" },
+    { query: "oak bed", productId: 100, name: "Pine Bed", imageThumbUrl: null, observations: 2, affinity: 0.5, source: "live" },
+    { query: "sofa", productId: 300, name: null, imageThumbUrl: null, observations: 1, affinity: 1, source: "live" },
   ];
 
   it("groups by query with entries sorted by affinity, carrying the boost", () => {
@@ -28,8 +28,8 @@ describe("toQueryAffinities", () => {
 
     const oakBed = groups[0]!;
     expect(oakBed.entries).toEqual([
-      { productId: 200, name: "Acacia Bed", observations: 1, affinity: 1, boost: 6 },
-      { productId: 100, name: "Pine Bed", observations: 2, affinity: 0.5, boost: 3 },
+      { productId: 200, name: "Acacia Bed", imageThumbUrl: "https://img/200.jpg", observations: 1, affinity: 1, boost: 6 },
+      { productId: 100, name: "Pine Bed", imageThumbUrl: null, observations: 2, affinity: 0.5, boost: 3 },
     ]);
   });
 

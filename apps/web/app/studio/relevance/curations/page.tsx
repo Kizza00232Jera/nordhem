@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CurationsEditor } from "../../../components/curations-editor";
+import { listCurations } from "../../../../lib/curations-repo";
 
 export const metadata: Metadata = { title: "Curations" };
 
-export default function CurationsPage() {
+export default async function CurationsPage() {
+  const existing = await listCurations();
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
       <nav className="text-[13px] text-ink-muted">
@@ -17,7 +19,7 @@ export default function CurationsPage() {
         don&rsquo;t. Curations are read at query time, so a change is live on the next search, no reindex and
         no analyzer reload. They override ranking for that one query only.
       </p>
-      <CurationsEditor />
+      <CurationsEditor existing={existing} />
     </main>
   );
 }
