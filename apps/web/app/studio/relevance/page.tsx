@@ -32,6 +32,12 @@ export default async function RelevanceLabPage() {
             Curations
           </Link>
           <Link
+            href="/studio/relevance/affinities"
+            className="rounded-xs border border-line px-4 py-2 text-[14px] font-medium hover:border-ink"
+          >
+            Learning loop
+          </Link>
+          <Link
             href="/studio/relevance/history"
             className="rounded-xs border border-line px-4 py-2 text-[14px] font-medium hover:border-ink"
           >
