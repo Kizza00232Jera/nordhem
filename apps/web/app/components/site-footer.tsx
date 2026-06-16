@@ -31,6 +31,11 @@ export function SiteFooter() {
                 Try the search
               </Link>
             </li>
+            <li>
+              <Link href="/status" className="hover:text-paper">
+                Service status
+              </Link>
+            </li>
           </ul>
         </div>
       </div>
