@@ -275,4 +275,23 @@ export async function ensureSchema(db: Db): Promise<void> {
   await db.execute(
     sql`CREATE INDEX IF NOT EXISTS click_affinity_query_idx ON click_affinity (query)`,
   );
+
+  // Step 11b AI editor assistant: the suggestion approval queue. Mirror schema.ts.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS search_suggestion (
+      id serial PRIMARY KEY,
+      query text NOT NULL,
+      kind text NOT NULL,
+      terms text NOT NULL,
+      maps_to text,
+      rationale text NOT NULL,
+      status text NOT NULL DEFAULT 'pending',
+      source text NOT NULL,
+      created_at timestamp NOT NULL DEFAULT now(),
+      decided_at timestamp
+    )
+  `);
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS search_suggestion_status_idx ON search_suggestion (status)`,
+  );
 }

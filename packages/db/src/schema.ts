@@ -432,3 +432,38 @@ export const clickAffinity = pgTable(
     index("click_affinity_query_idx").on(t.query),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Step 11b AI editor assistant: the human-in-the-loop approval queue. A
+// dev-time Claude session (or the heuristic generator) analyses zero-result /
+// worst queries and writes PENDING synonym suggestions here; an editor approves
+// or rejects them in the studio. Approving creates a real synonym_rules row
+// (which still has to be Applied to go live), so an LLM never ships a change on
+// its own. The columns mirror SynonymInput (kind/terms/mapsTo) so approval maps
+// straight onto createSynonym.
+// ---------------------------------------------------------------------------
+
+export const searchSuggestion = pgTable(
+  "search_suggestion",
+  {
+    id: serial("id").primaryKey(),
+    /** The query that motivated the suggestion (zero-result / worst query). */
+    query: text("query").notNull(),
+    /** Synonym kind, same vocabulary as synonym_rules: 'equivalent' | 'oneway'. */
+    kind: text("kind").notNull(),
+    /** Proposed terms (comma list / one-way LHS). */
+    terms: text("terms").notNull(),
+    /** One-way only: the term the LHS maps to. */
+    mapsTo: text("maps_to"),
+    /** Why the assistant proposed it (shown to the editor). */
+    rationale: text("rationale").notNull(),
+    /** 'pending' | 'approved' | 'rejected'. */
+    status: text("status").notNull().default("pending"),
+    /** Who proposed it: 'ai' (Claude session) | 'heuristic' (generator). */
+    source: text("source").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    /** When an editor approved/rejected it; null while pending. */
+    decidedAt: timestamp("decided_at"),
+  },
+  (t) => [index("search_suggestion_status_idx").on(t.status)],
+);

@@ -30,12 +30,12 @@ export async function listSynonyms(): Promise<SynonymRow[]> {
   }));
 }
 
-export async function createSynonym(input: SynonymInput): Promise<void> {
+export async function createSynonym(input: SynonymInput, source = "manual"): Promise<void> {
   await db().insert(synonymRules).values({
     kind: input.kind,
     terms: splitTerms(input.terms).join(", "),
     mapsTo: input.kind === "oneway" ? (input.mapsTo ?? "").trim() : null,
-    source: "manual",
+    source,
   });
 }
 
