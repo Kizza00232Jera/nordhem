@@ -18,7 +18,8 @@
     "seed-synonyms": "tsx src/es/seed-synonyms-cli.ts",
     "reload-synonyms": "tsx src/es/reload-synonyms-cli.ts",
     "simulate-traffic": "tsx src/analytics/simulate-cli.ts",
-    "aggregate-clicks": "tsx src/analytics/aggregate-cli.ts"
+    "aggregate-clicks": "tsx src/analytics/aggregate-cli.ts",
+    "eval-affinity": "tsx src/eval/eval-affinity-cli.ts"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.4.2",

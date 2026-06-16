@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   affinityBoostWeight,
   aggregateAffinities,
+  buildAffinityBoostMap,
   correctedClickValue,
   DEFAULT_AFFINITY_BOOST,
   type ClickObservation,
@@ -108,5 +109,29 @@ describe("affinityBoostWeight", () => {
   it("has sane shipped defaults (scale and a cap above it)", () => {
     expect(DEFAULT_AFFINITY_BOOST.cap).toBeGreaterThan(DEFAULT_AFFINITY_BOOST.scale);
     expect(affinityBoostWeight(1)).toBe(DEFAULT_AFFINITY_BOOST.scale);
+  });
+});
+
+// The before/after eval needs the learned boosts keyed by query, so the eval's
+// search fn can look up "what would the loop add for THIS query" in O(1).
+describe("buildAffinityBoostMap", () => {
+  const clicks: ClickObservation[] = [
+    { query: "oak bed", productId: 100, position: 1 },
+    { query: "oak bed", productId: 100, position: 1 },
+    { query: "oak bed", productId: 200, position: 3 },
+    { query: "sofa", productId: 300, position: 2 },
+  ];
+
+  it("maps each query to its capped, affinity-sorted boosts", () => {
+    const map = buildAffinityBoostMap(clicks, { decay: 0.5, boost: { scale: 6, cap: 8 } });
+    expect(map.get("oak bed")).toEqual([
+      { productId: 200, weight: 6 }, // affinity 1.0 -> 6
+      { productId: 100, weight: 3 }, // affinity 0.5 -> 3
+    ]);
+    expect(map.get("sofa")).toEqual([{ productId: 300, weight: 6 }]);
+  });
+
+  it("is empty for no clicks", () => {
+    expect(buildAffinityBoostMap([], { decay: 0.7 }).size).toBe(0);
   });
 });
