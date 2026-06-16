@@ -71,7 +71,7 @@ export function ChatWidget() {
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {messages.length === 0 && (
               <p className="text-[13px] text-ink-muted">
-                Ask me to find something — e.g. &ldquo;a green velvet sofa under €600&rdquo; or
+                Ask me to find something, e.g. &ldquo;a green velvet sofa under €600&rdquo; or
                 &ldquo;something for a small bedroom&rdquo;. I search the real catalog.
               </p>
             )}

@@ -26,7 +26,7 @@ export async function approveSuggestionAction(id: number): Promise<DecisionResul
     query: s.query,
     source: s.source,
   });
-  return { ok: true, message: "Approved. Created a synonym rule — go to Synonyms and Apply to push it live." };
+  return { ok: true, message: "Approved. Created a synonym rule; go to Synonyms and Apply to push it live." };
 }
 
 /** Reject a suggestion: mark it rejected, no rule created. */
