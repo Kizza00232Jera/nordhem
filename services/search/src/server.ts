@@ -3,6 +3,7 @@ import type { Db } from "@nordhem/db";
 import Fastify, { type FastifyInstance } from "fastify";
 import { makeEvalDataCache } from "./eval/eval-data.ts";
 import { runEval, trainTestSplit } from "./eval/harness.ts";
+import { loadAffinityBoosts } from "./analytics/affinity-repo.ts";
 import { loadCuration } from "./es/curations-db.ts";
 import { reloadSynonyms } from "./es/indexer.ts";
 import { loadSynonymRulesFromDb } from "./es/synonyms-db.ts";
@@ -97,10 +98,14 @@ export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps):
       const band = priceBandBounds(req.query.price);
       // Curations are a shop-scope editor feature; read per query (Step 9).
       const curation = isShop && db ? await loadCuration(db, query) : undefined;
+      // Learned click-affinity boosts, read per query (Step 11a); lexical-mode
+      // only inside searchProducts, same per-request shape as the curation.
+      const affinityBoosts = isShop && db ? await loadAffinityBoosts(db, query) : undefined;
       return searchProducts(es, isShop ? shopIndex : index, query, {
         facets: isShop,
         mode: toMode(req.query.mode),
         ...(curation && { curation }),
+        ...(affinityBoosts?.length && { affinityBoosts }),
         sort: toSort(req.query.sort),
         page: toPage(req.query.page),
         size: toSize(req.query.size),

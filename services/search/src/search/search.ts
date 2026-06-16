@@ -3,7 +3,7 @@ import type { FacetBucket, PriceBucket, SearchFacets, SearchHit, SearchResponse 
 import type { ProductDocument, ShopDocument } from "../es/indexer.ts";
 import { embedQuery } from "../embed/embed.ts";
 import { curateIds, curationActive, type Curation } from "./curate.ts";
-import { buildSearchBody, type SearchFilters, type SortOption } from "./query.ts";
+import { type AffinityBoost, buildSearchBody, type SearchFilters, type SortOption } from "./query.ts";
 import { hybridProductIds, knnProductIds } from "./semantic.ts";
 
 const DEFAULT_SIZE = 20;
@@ -28,6 +28,12 @@ export interface SearchOptions {
   mode?: SearchMode;
   /** Per-query curation to pin/hide products (Step 9); applied on page 1. */
   curation?: Curation;
+  /**
+   * Per-query learned click-affinity boosts (Step 11a). Lexical-mode only —
+   * they ride into the BM25 query as function_score weights, so semantic/hybrid
+   * (which rank by vector distance / RRF, not BM25) are left untouched.
+   */
+  affinityBoosts?: AffinityBoost[];
 }
 
 /** Read a terms aggregation's buckets into the contract's value/count pairs. */
@@ -143,6 +149,7 @@ async function lexicalSearch(
       filters: opts.filters,
       sort: opts.sort,
       from,
+      ...(opts.affinityBoosts && { affinityBoosts: opts.affinityBoosts }),
     }),
   });
 
