@@ -135,3 +135,37 @@ describe("buildAffinityBoostMap", () => {
     expect(buildAffinityBoostMap([], { decay: 0.7 }).size).toBe(0);
   });
 });
+
+// Two enhancements: only boost a product after MULTIPLE people click it (not a
+// single click), and weight RECENT clicks more so a freshly-popular product can
+// rise (the "trending" flavour). Both are opt-in params; defaults keep the
+// original behaviour.
+describe("aggregateAffinities enhancements", () => {
+  it("drops products below the minimum-observations threshold", () => {
+    const clicks: ClickObservation[] = [
+      { query: "oak bed", productId: 100, position: 1 },
+      { query: "oak bed", productId: 100, position: 1 },
+      { query: "oak bed", productId: 200, position: 3 }, // a single click
+    ];
+    const rows = aggregateAffinities(clicks, { decay: 0.5, minObservations: 2 });
+    // 200's lone click is ignored; only 100 (clicked twice) survives.
+    expect(rows.map((r) => r.productId)).toEqual([100]);
+    expect(rows[0]!.affinity).toBe(1);
+  });
+
+  it("weights recent clicks more than old ones when a half-life is set", () => {
+    // Both at position 1 (equal position weight). Product 1 clicked now, product
+    // 2 clicked two half-lives ago: recency 0.5^0 = 1 vs 0.5^2 = 0.25.
+    const clicks: ClickObservation[] = [
+      { query: "x", productId: 1, position: 1, at: 2000 },
+      { query: "x", productId: 2, position: 1, at: 0 },
+    ];
+    const rows = aggregateAffinities(clicks, { decay: 0.5, halfLifeMs: 1000, now: 2000 });
+    const fresh = rows.find((r) => r.productId === 1)!;
+    const stale = rows.find((r) => r.productId === 2)!;
+    expect(fresh.rawScore).toBeCloseTo(1, 10);
+    expect(stale.rawScore).toBeCloseTo(0.25, 10);
+    expect(fresh.affinity).toBe(1);
+    expect(stale.affinity).toBeCloseTo(0.25, 10);
+  });
+});

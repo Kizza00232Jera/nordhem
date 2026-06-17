@@ -45,7 +45,9 @@ describe("readClickObservations", () => {
     ]);
 
     const obs = await readClickObservations(db, "live");
-    expect(obs).toEqual([{ query: "oak bed", productId: 100, position: 1 }]);
+    expect(obs).toHaveLength(1);
+    expect(obs[0]).toMatchObject({ query: "oak bed", productId: 100, position: 1 });
+    expect(typeof obs[0]!.at).toBe("number"); // recency timestamp from created_at
   });
 });
 

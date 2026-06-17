@@ -27,19 +27,21 @@ export async function readClickObservations(
       query: searchEvents.query,
       productId: searchEvents.productId,
       position: searchEvents.position,
+      createdAt: searchEvents.createdAt,
     })
     .from(searchEvents)
     .where(and(eq(searchEvents.type, "click"), eq(searchEvents.source, source)));
 
   return rows
     .filter(
-      (r): r is { query: string; productId: number; position: number } =>
+      (r): r is { query: string; productId: number; position: number; createdAt: Date } =>
         r.productId != null && r.position != null,
     )
     .map((r) => ({
       query: normalizeCurationQuery(r.query),
       productId: r.productId,
       position: r.position,
+      at: r.createdAt.getTime(),
     }));
 }
 

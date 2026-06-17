@@ -31,17 +31,26 @@ function flag(name: string): string | undefined {
 const source: EventSource = flag("source") === "synthetic" ? "synthetic" : "live";
 const decay = Number(flag("decay")) > 0 ? Number(flag("decay")) : DEFAULT_CLICK_MODEL.decay;
 const dryRun = process.argv.includes("--dry-run");
+// Don't boost a product until at least this many clicks (default 1 = off).
+const minObservations = Number(flag("min-observations")) > 0 ? Number(flag("min-observations")) : 1;
+// Recency half-life in days (default 0 = off); recent clicks weigh more.
+const halfLifeDays = Number(flag("half-life-days")) > 0 ? Number(flag("half-life-days")) : 0;
 
 const { db, close } = createDb(databaseUrl);
 try {
   await ensureSchema(db);
 
   const clicks = await readClickObservations(db, source);
-  const rows = aggregateAffinities(clicks, { decay });
+  const halfLifeMs = halfLifeDays > 0 ? halfLifeDays * 24 * 60 * 60 * 1000 : undefined;
+  const rows = aggregateAffinities(clicks, {
+    decay,
+    minObservations,
+    ...(halfLifeMs ? { halfLifeMs, now: Date.now() } : {}),
+  });
 
   console.log(
     `read ${clicks.length} ${source} clicks -> ${rows.length} (query, product) affinities ` +
-      `(decay ${decay})`,
+      `(decay ${decay}, min-obs ${minObservations}${halfLifeDays ? `, half-life ${halfLifeDays}d` : ""})`,
   );
 
   // A small preview so a run is legible without querying the table.
