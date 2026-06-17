@@ -258,4 +258,53 @@ export async function ensureSchema(db: Db): Promise<void> {
   await db.execute(
     sql`CREATE INDEX IF NOT EXISTS search_events_created_idx ON search_events (created_at)`,
   );
+
+  // Step 11a learning loop: the click-affinity table. Mirror schema.ts exactly.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS click_affinity (
+      query text NOT NULL,
+      product_id integer NOT NULL,
+      observations integer NOT NULL,
+      raw_score double precision NOT NULL,
+      affinity double precision NOT NULL,
+      source text NOT NULL DEFAULT 'live',
+      updated_at timestamp NOT NULL DEFAULT now(),
+      PRIMARY KEY (query, product_id)
+    )
+  `);
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS click_affinity_query_idx ON click_affinity (query)`,
+  );
+
+  // Step 11b AI editor assistant: the suggestion approval queue. Mirror schema.ts.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS search_suggestion (
+      id serial PRIMARY KEY,
+      query text NOT NULL,
+      kind text NOT NULL,
+      terms text NOT NULL,
+      maps_to text,
+      rationale text NOT NULL,
+      status text NOT NULL DEFAULT 'pending',
+      source text NOT NULL,
+      created_at timestamp NOT NULL DEFAULT now(),
+      decided_at timestamp
+    )
+  `);
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS search_suggestion_status_idx ON search_suggestion (status)`,
+  );
+
+  // AI config (chatbot + suggestion generator): a single-row settings table.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS chat_settings (
+      id integer PRIMARY KEY DEFAULT 1,
+      mode text NOT NULL DEFAULT 'off',
+      provider text NOT NULL DEFAULT 'openai-compatible',
+      base_url text NOT NULL DEFAULT 'https://api.openai.com/v1',
+      model text NOT NULL DEFAULT '',
+      api_key text NOT NULL DEFAULT '',
+      updated_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
 }

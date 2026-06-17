@@ -1,4 +1,4 @@
-import { BarChart3, Images, SearchCode } from "lucide-react";
+import { Activity, BarChart3, Images, SearchCode, Settings } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -54,6 +54,36 @@ export default function StudioHome() {
               <span className="mt-1 block text-[13px] leading-relaxed text-ink-muted">
                 Top queries, zero-result rate, click-through by position and
                 latency, from first-party events.
+              </span>
+            </span>
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/status"
+            className="flex items-start gap-4 rounded-md bg-card p-5 shadow-lift transition-shadow hover:shadow-float"
+          >
+            <Activity aria-hidden className="mt-0.5 size-5 text-pine" strokeWidth={1.75} />
+            <span>
+              <span className="block text-[15px] font-semibold">Service status</span>
+              <span className="mt-1 block text-[13px] leading-relaxed text-ink-muted">
+                Full mode (PC search engine up) vs lite mode (Postgres
+                fallback), and what each mode can and can&rsquo;t do.
+              </span>
+            </span>
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/studio/settings"
+            className="flex items-start gap-4 rounded-md bg-card p-5 shadow-lift transition-shadow hover:shadow-float"
+          >
+            <Settings aria-hidden className="mt-0.5 size-5 text-pine" strokeWidth={1.75} />
+            <span>
+              <span className="block text-[15px] font-semibold">Settings</span>
+              <span className="mt-1 block text-[13px] leading-relaxed text-ink-muted">
+                Configure the shop assistant: bring your own provider key, or use
+                your Claude subscription locally.
               </span>
             </span>
           </Link>

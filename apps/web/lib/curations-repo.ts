@@ -1,4 +1,4 @@
-import { curations, eq, inArray, productImages, productsRaw, shopProducts } from "@nordhem/db";
+import { curations, desc, eq, inArray, productImages, productsRaw, shopProducts } from "@nordhem/db";
 import { db } from "./db";
 
 export function normalizeCurationQuery(q: string): string {
@@ -32,6 +32,27 @@ export async function saveCuration(query: string, data: CurationData): Promise<v
       target: curations.query,
       set: { pinned: data.pinned, hidden: data.hidden, updatedAt: new Date() },
     });
+}
+
+export interface CurationSummary {
+  query: string;
+  pinnedCount: number;
+  hiddenCount: number;
+  updatedAt: Date;
+}
+
+/** Every saved curation, newest first — the "jump back in" list for the editor. */
+export async function listCurations(): Promise<CurationSummary[]> {
+  const rows = await db()
+    .select()
+    .from(curations)
+    .orderBy(desc(curations.updatedAt));
+  return rows.map((r) => ({
+    query: r.query,
+    pinnedCount: (r.pinned ?? []).length,
+    hiddenCount: (r.hidden ?? []).length,
+    updatedAt: r.updatedAt,
+  }));
 }
 
 export interface ProductCard {

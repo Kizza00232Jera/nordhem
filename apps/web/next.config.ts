@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "plus.unsplash.com" },
+      // Pexels is the other approved hotlink source (catalog photos + the
+      // image-rejudge swaps); see CLAUDE.md "Unsplash/Pexels photos".
+      { protocol: "https", hostname: "images.pexels.com" },
     ],
   },
 };

@@ -72,6 +72,18 @@ export interface SearchBodyOptions {
   from?: number;
   /** Ranking knobs (Step 7); defaults to DEFAULT_RANKING (the step-3 query). */
   ranking?: RankingConfig;
+  /**
+   * Step 11a: learned click-affinity boosts for THIS query. Each is a capped
+   * additive weight on one product's score (see analytics/affinity.ts). Empty
+   * or absent leaves the query untouched.
+   */
+  affinityBoosts?: AffinityBoost[];
+}
+
+/** A learned per-product boost: add `weight` to product `productId`'s score. */
+export interface AffinityBoost {
+  productId: number;
+  weight: number;
 }
 
 function sortClause(sort?: SortOption): estypes.Sort | undefined {
@@ -218,6 +230,7 @@ function buildQueryClause(
   query: string,
   filters?: SearchFilters,
   ranking: RankingConfig = DEFAULT_RANKING,
+  affinityBoosts: AffinityBoost[] = [],
 ): estypes.QueryDslQueryContainer {
   const mm = buildMultiMatch(query, ranking);
   const should: estypes.QueryDslQueryContainer[] =
@@ -239,11 +252,12 @@ function buildQueryClause(
     };
   }
 
-  if (ranking.popularityWeight > 0) {
-    return {
-      function_score: {
-        query: base,
-        functions: [
+  // Popularity (Step 7) adds a saturated review-count factor; affinity (Step
+  // 11a) adds a per-product weight for products clicked on this query. NaN /
+  // non-positive affinity weights are dropped defensively (untrusted upstream).
+  const popularity: estypes.QueryDslFunctionScoreContainer[] =
+    ranking.popularityWeight > 0
+      ? [
           {
             field_value_factor: {
               field: "review_count",
@@ -252,12 +266,29 @@ function buildQueryClause(
               factor: ranking.popularityWeight,
             },
           },
-        ],
-        boost_mode: "sum",
-      },
-    };
+        ]
+      : [];
+  const affinity: estypes.QueryDslFunctionScoreContainer[] = affinityBoosts
+    .filter((b) => Number.isFinite(b.weight) && b.weight > 0)
+    .map((b) => ({ filter: { term: { product_id: b.productId } }, weight: b.weight }));
+
+  if (popularity.length === 0 && affinity.length === 0) return base;
+
+  // Popularity-only keeps the exact step-7 shape (no score_mode) for stability.
+  if (affinity.length === 0) {
+    return { function_score: { query: base, functions: popularity, boost_mode: "sum" } };
   }
-  return base;
+
+  // With affinity present, sum every function (popularity + each product
+  // weight) so they add rather than the default multiply, then sum onto BM25.
+  return {
+    function_score: {
+      query: base,
+      functions: [...popularity, ...affinity],
+      score_mode: "sum",
+      boost_mode: "sum",
+    },
+  };
 }
 
 /**
@@ -280,7 +311,7 @@ export function buildSearchBody(
     // multi_match alone, or wrapped in a bool with the facet filters.
     // AUTO scales allowed edits with term length: 0 edits up to 2 chars,
     // 1 edit for 3-5, 2 edits above 5.
-    query: buildQueryClause(query, opts.filters, opts.ranking),
+    query: buildQueryClause(query, opts.filters, opts.ranking, opts.affinityBoosts),
     highlight: {
       pre_tags: ["<mark>"],
       post_tags: ["</mark>"],

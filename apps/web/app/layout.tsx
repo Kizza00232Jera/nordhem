@@ -6,6 +6,7 @@ import { getCartView } from "../lib/cart-view";
 import { db } from "../lib/db";
 import { CartDrawer } from "./components/cart-drawer";
 import { CartProvider } from "./components/cart-provider";
+import { ChatLauncher } from "./components/chat-launcher";
 import { SiteFooter } from "./components/site-footer";
 import { SiteHeader } from "./components/site-header";
 
@@ -51,6 +52,7 @@ export default async function RootLayout({
           <div className="flex-1">{children}</div>
           <SiteFooter />
           <CartDrawer />
+          <ChatLauncher />
         </CartProvider>
       </body>
     </html>

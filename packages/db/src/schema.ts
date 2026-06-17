@@ -399,3 +399,97 @@ export const searchEvents = pgTable(
     index("search_events_created_idx").on(t.createdAt),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Step 11a learning loop: the click-affinity table. The aggregate-clicks job
+// reads clicks from search_events, applies position-bias correction, and
+// REPLACES the rows here for a given source. The search service reads it per
+// query and turns affinity into a capped query-time boost. One row per
+// (query, product); source keeps a live-derived loop separate from a
+// synthetic-derived demo (the synthetic clicks encode the judgments, so a
+// synthetic loop evaluated on those judgments is circular — kept honest here).
+// ---------------------------------------------------------------------------
+
+export const clickAffinity = pgTable(
+  "click_affinity",
+  {
+    /** Normalised query the affinity belongs to. */
+    query: text("query").notNull(),
+    /** The product clicked for that query. */
+    productId: integer("product_id").notNull(),
+    /** Raw click count (for thresholds / transparency). */
+    observations: integer("observations").notNull(),
+    /** Sum of position-corrected click values, pre-normalisation. */
+    rawScore: doublePrecision("raw_score").notNull(),
+    /** rawScore normalised to (0,1] within the query — the boost signal. */
+    affinity: doublePrecision("affinity").notNull(),
+    /** Event source the affinity was computed from ('live' | 'synthetic'). */
+    source: text("source").notNull().default("live"),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.query, t.productId] }),
+    index("click_affinity_query_idx").on(t.query),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// Step 11b AI editor assistant: the human-in-the-loop approval queue. A
+// dev-time Claude session (or the heuristic generator) analyses zero-result /
+// worst queries and writes PENDING synonym suggestions here; an editor approves
+// or rejects them in the studio. Approving creates a real synonym_rules row
+// (which still has to be Applied to go live), so an LLM never ships a change on
+// its own. The columns mirror SynonymInput (kind/terms/mapsTo) so approval maps
+// straight onto createSynonym.
+// ---------------------------------------------------------------------------
+
+export const searchSuggestion = pgTable(
+  "search_suggestion",
+  {
+    id: serial("id").primaryKey(),
+    /** The query that motivated the suggestion (zero-result / worst query). */
+    query: text("query").notNull(),
+    /** Synonym kind, same vocabulary as synonym_rules: 'equivalent' | 'oneway'. */
+    kind: text("kind").notNull(),
+    /** Proposed terms (comma list / one-way LHS). */
+    terms: text("terms").notNull(),
+    /** One-way only: the term the LHS maps to. */
+    mapsTo: text("maps_to"),
+    /** Why the assistant proposed it (shown to the editor). */
+    rationale: text("rationale").notNull(),
+    /** 'pending' | 'approved' | 'rejected'. */
+    status: text("status").notNull().default("pending"),
+    /** Who proposed it: 'ai' (Claude session) | 'heuristic' (generator). */
+    source: text("source").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    /** When an editor approved/rejected it; null while pending. */
+    decidedAt: timestamp("decided_at"),
+  },
+  (t) => [index("search_suggestion_status_idx").on(t.status)],
+);
+
+// ---------------------------------------------------------------------------
+// Step 11c / AI config: a single-row settings table so the chatbot (and the AI
+// suggestion generator) are configured from the studio UI instead of .env.
+// mode 'off' hides the chatbot; 'api' uses an OpenAI-compatible key/model (works
+// anywhere, any provider); 'subscription' routes through the local `claude` CLI
+// (localhost only, free, no key). The key is stored as-is: fine for a personal
+// portfolio demo, but the studio must be access-controlled before a public
+// deploy, and a real product would use a secret manager.
+// ---------------------------------------------------------------------------
+
+export const chatSettings = pgTable("chat_settings", {
+  /** Singleton row, always id = 1. */
+  id: integer("id").primaryKey().default(1),
+  /** 'off' | 'api' | 'subscription'. */
+  mode: text("mode").notNull().default("off"),
+  /** Display label, e.g. 'openai', 'anthropic', 'groq'. */
+  provider: text("provider").notNull().default("openai-compatible"),
+  /** OpenAI-compatible base URL (api mode). */
+  baseUrl: text("base_url").notNull().default("https://api.openai.com/v1"),
+  /** Model id for whichever mode is active. */
+  model: text("model").notNull().default(""),
+  /** Provider API key (api mode only); empty in subscription/off. */
+  apiKey: text("api_key").notNull().default(""),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
