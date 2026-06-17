@@ -2,7 +2,7 @@
 
 NORDHEM is a real, modern e-commerce storefront for Nordic home goods with a search-engineering brain. It is the showcase project for a JYSK "Software Engineer, Search" application: a full storefront (browse, cart, checkout, accounts, favorites) sitting on top of a production-shaped Elasticsearch search service, plus a Search Studio that exposes the relevance-engineering work that actually matters in the role: offline evaluation against human judgments, ranking tuning, semantic and hybrid retrieval, editor tooling, analytics, and graceful degradation when the engine is offline. It is built to demonstrate search relevance engineering and modern React in the same codebase.
 
-- **Live demo:** https://nordhem-web.vercel.app (full mode when the search PC is online; otherwise it serves a Postgres "lite mode" so the site is never down)
+- **Live demo:** https://nordhem-web.vercel.app — runs in **full mode** when the search service is up on the maintainer's machine (Docker running Elasticsearch + the Fastify service, exposed over a tunnel; see [Run it locally](#run-it-locally) and [docs/DEPLOY.md](docs/DEPLOY.md)). When it is not, the site automatically falls back to a Postgres **lite mode**, so it is never down.
 - **Repo:** https://github.com/Kizza00232Jera/nordhem
 
 ## Architecture
