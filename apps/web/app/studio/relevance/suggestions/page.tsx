@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { GenerateSuggestionsButton } from "../../../components/generate-suggestions-button";
 import { SuggestionsQueue } from "../../../components/suggestions-queue";
 import { zeroResultQueries } from "../../../../lib/analytics-repo";
 import { db } from "../../../../lib/db";
@@ -45,6 +46,7 @@ export default async function SuggestionsPage() {
         </section>
       )}
 
+      <GenerateSuggestionsButton />
       <SuggestionsQueue suggestions={pending} />
     </main>
   );
