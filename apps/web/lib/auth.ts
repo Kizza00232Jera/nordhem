@@ -19,9 +19,16 @@ export function buildAuth(database: Db) {
   const googleConfigured =
     !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET;
 
+  const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+  // Origins allowed to use auth. baseURL covers the real domain; VERCEL_URL
+  // (auto-set per deployment) lets preview deploys sign in too.
+  const trustedOrigins = [baseURL];
+  if (process.env.VERCEL_URL) trustedOrigins.push(`https://${process.env.VERCEL_URL}`);
+
   return betterAuth({
     secret: process.env.BETTER_AUTH_SECRET ?? "nordhem-dev-secret-change-me",
-    baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+    baseURL,
+    trustedOrigins,
     database: drizzleAdapter(database, {
       provider: "pg",
       // Our table variables are named for Better Auth's models, but pass them

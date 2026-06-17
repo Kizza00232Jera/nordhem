@@ -20,7 +20,8 @@
     "simulate-traffic": "tsx src/analytics/simulate-cli.ts",
     "aggregate-clicks": "tsx src/analytics/aggregate-cli.ts",
     "eval-affinity": "tsx src/eval/eval-affinity-cli.ts",
-    "suggest-synonyms": "tsx src/analytics/suggest-cli.ts"
+    "suggest-synonyms": "tsx src/analytics/suggest-cli.ts",
+    "tunnel": "cloudflared tunnel --url http://localhost:3001"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.4.2",

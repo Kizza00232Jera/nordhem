@@ -7,6 +7,7 @@ import { loadAffinityBoosts } from "./analytics/affinity-repo.ts";
 import { loadCuration } from "./es/curations-db.ts";
 import { reloadSynonyms } from "./es/indexer.ts";
 import { loadSynonymRulesFromDb } from "./es/synonyms-db.ts";
+import { bearerMatches } from "./auth-token.ts";
 import { autocompleteProducts } from "./search/autocomplete.ts";
 import { searchProducts, type SearchMode } from "./search/search.ts";
 import { buildSearchBody, coerceRankingConfig, priceBandBounds, type SortOption } from "./search/query.ts";
@@ -27,6 +28,16 @@ export interface AppDeps {
 
 export function buildApp({ es, index, shopIndex, db, logger = false }: AppDeps): FastifyInstance {
   const app = Fastify({ logger });
+
+  // Step 12: optional shared-token guard (SEARCH_API_TOKEN) so a tunnelled
+  // service is not open to the internet. /health stays public for uptime probes.
+  const apiToken = process.env.SEARCH_API_TOKEN;
+  app.addHook("onRequest", async (req, reply) => {
+    if (req.url === "/health" || req.url.startsWith("/health?")) return;
+    if (!bearerMatches(req.headers.authorization, apiToken)) {
+      return reply.code(401).send({ error: "unauthorized" });
+    }
+  });
 
   app.get("/health", async () => ({ status: "ok" }));
 
