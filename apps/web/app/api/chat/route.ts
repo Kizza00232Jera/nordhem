@@ -1,22 +1,21 @@
 import { type ChatMessage, runChatTurn } from "../../../lib/chat/agent";
-import { resolveChatConfig } from "../../../lib/chat/config";
-import { chatEnabled } from "../../../lib/chat/enabled";
+import { chatEnabled, getChatConfig } from "../../../lib/chat/enabled";
 import { openAiCompatibleClient } from "../../../lib/chat/provider";
 import { runCatalogSearch } from "../../../lib/chat/run-search";
+import { subscriptionChatTurn } from "../../../lib/chat/subscription";
 
-/** Status probe: the widget asks whether the assistant is available (configured
- * AND full mode), so it can hide itself in lite mode without a server round-trip
- * on every page render. */
+/**
+ * Step 11c: the shopping chatbot turn. Configured from the studio (DB) first,
+ * env as deploy fallback; off entirely when nothing is set. The model only ever
+ * searches our catalog (search_products) and never sits in the search hot path.
+ * Two backends: 'api' runs the tool-use loop against any OpenAI-compatible
+ * provider; 'subscription' routes through the local claude CLI (free, localhost).
+ */
+
+/** Status probe: the widget asks whether the assistant is available. */
 export async function GET() {
   return Response.json({ enabled: await chatEnabled() });
 }
-
-/**
- * Step 11c: the shopping chatbot turn. Provider-agnostic (resolveChatConfig) and
- * gated off when no key is configured, so the storefront runs fine without it and
- * no credits are ever spent unprompted. The model may only call search_products
- * over our catalog — it never ranks and never sits in the search hot path.
- */
 
 /** Keep only well-formed user/assistant turns, most recent dozen. */
 function sanitizeMessages(input: unknown): ChatMessage[] {
@@ -34,7 +33,7 @@ function sanitizeMessages(input: unknown): ChatMessage[] {
 }
 
 export async function POST(request: Request) {
-  const config = resolveChatConfig(process.env);
+  const config = await getChatConfig();
   if (!config) {
     return Response.json({ error: "The assistant is not configured." }, { status: 503 });
   }
@@ -52,6 +51,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (config.mode === "subscription") {
+      const reply = await subscriptionChatTurn(config.model, messages);
+      return Response.json({ reply });
+    }
     const client = openAiCompatibleClient(config);
     const result = await runChatTurn({ client, runSearch: runCatalogSearch, messages });
     return Response.json({ reply: result.reply });

@@ -1,13 +1,13 @@
-import { chatConfigured } from "../../lib/chat/enabled";
+import { getChatConfig } from "../../lib/chat/enabled";
 import { ChatWidget } from "./chat-widget";
 
 /**
- * Server gate for the chatbot. Renders nothing (no client JS) unless a provider
- * key is configured, so an unconfigured storefront ships zero chatbot weight.
- * The finer "full mode only" check happens inside the widget (GET /api/chat), to
- * avoid a search-service health probe on every page render.
+ * Server gate for the chatbot. Renders nothing (no client JS) unless the
+ * assistant is configured (studio settings or env). The finer "is the backend
+ * reachable" check happens inside the widget (GET /api/chat).
  */
-export function ChatLauncher() {
-  if (!chatConfigured()) return null;
+export async function ChatLauncher() {
+  const cfg = await getChatConfig();
+  if (!cfg) return null;
   return <ChatWidget />;
 }
