@@ -467,3 +467,29 @@ export const searchSuggestion = pgTable(
   },
   (t) => [index("search_suggestion_status_idx").on(t.status)],
 );
+
+// ---------------------------------------------------------------------------
+// Step 11c / AI config: a single-row settings table so the chatbot (and the AI
+// suggestion generator) are configured from the studio UI instead of .env.
+// mode 'off' hides the chatbot; 'api' uses an OpenAI-compatible key/model (works
+// anywhere, any provider); 'subscription' routes through the local `claude` CLI
+// (localhost only, free, no key). The key is stored as-is: fine for a personal
+// portfolio demo, but the studio must be access-controlled before a public
+// deploy, and a real product would use a secret manager.
+// ---------------------------------------------------------------------------
+
+export const chatSettings = pgTable("chat_settings", {
+  /** Singleton row, always id = 1. */
+  id: integer("id").primaryKey().default(1),
+  /** 'off' | 'api' | 'subscription'. */
+  mode: text("mode").notNull().default("off"),
+  /** Display label, e.g. 'openai', 'anthropic', 'groq'. */
+  provider: text("provider").notNull().default("openai-compatible"),
+  /** OpenAI-compatible base URL (api mode). */
+  baseUrl: text("base_url").notNull().default("https://api.openai.com/v1"),
+  /** Model id for whichever mode is active. */
+  model: text("model").notNull().default(""),
+  /** Provider API key (api mode only); empty in subscription/off. */
+  apiKey: text("api_key").notNull().default(""),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

@@ -294,4 +294,17 @@ export async function ensureSchema(db: Db): Promise<void> {
   await db.execute(
     sql`CREATE INDEX IF NOT EXISTS search_suggestion_status_idx ON search_suggestion (status)`,
   );
+
+  // AI config (chatbot + suggestion generator): a single-row settings table.
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS chat_settings (
+      id integer PRIMARY KEY DEFAULT 1,
+      mode text NOT NULL DEFAULT 'off',
+      provider text NOT NULL DEFAULT 'openai-compatible',
+      base_url text NOT NULL DEFAULT 'https://api.openai.com/v1',
+      model text NOT NULL DEFAULT '',
+      api_key text NOT NULL DEFAULT '',
+      updated_at timestamp NOT NULL DEFAULT now()
+    )
+  `);
 }
