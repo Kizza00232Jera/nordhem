@@ -1,11 +1,10 @@
 import { AutocompleteResponseSchema } from "@nordhem/shared";
-
-const SEARCH_API_URL = process.env.SEARCH_API_URL ?? "http://localhost:3001";
+import { getSearchBackend } from "../../../lib/search-source";
 
 /**
  * Same-origin proxy for the search service's /autocomplete — the browser
  * never talks to the PC tunnel directly. Shop scope only: the combobox
- * suggests buyable products.
+ * suggests buyable products. Honors the per-session connected engine (Step 12).
  */
 export async function GET(request: Request) {
   const q = new URL(request.url).searchParams.get("q")?.trim();
@@ -17,11 +16,15 @@ export async function GET(request: Request) {
   }
 
   try {
+    const backend = await getSearchBackend();
     const res = await fetch(
-      `${SEARCH_API_URL}/autocomplete?q=${encodeURIComponent(q)}&scope=shop`,
+      `${backend.url}/autocomplete?q=${encodeURIComponent(q)}&scope=shop`,
       // Mirrors the planned circuit-breaker budget (D12): a sleeping PC
       // must not hold the combobox hostage.
-      { signal: AbortSignal.timeout(800) },
+      {
+        signal: AbortSignal.timeout(800),
+        ...(backend.token ? { headers: { authorization: `Bearer ${backend.token}` } } : {}),
+      },
     );
     if (!res.ok) throw new Error(`search service responded ${res.status}`);
     return Response.json(AutocompleteResponseSchema.parse(await res.json()));

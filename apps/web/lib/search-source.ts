@@ -1,11 +1,33 @@
 import { SearchResponseSchema, type SearchResponse } from "@nordhem/shared";
+import { cookies } from "next/headers";
 import { CircuitBreaker } from "./circuit-breaker";
 import { db } from "./db";
+import { type EngineBackend, ENGINE_COOKIE, parseEngineCookie } from "./engine-cookie";
 import { ftsSearchShop, type FtsParams } from "./fts-search";
 
 const SEARCH_API_URL = process.env.SEARCH_API_URL ?? "http://localhost:3001";
+const SEARCH_API_TOKEN = process.env.SEARCH_API_TOKEN;
 // A sleeping PC must not hold a request hostage (D12).
 const TIMEOUT_MS = 800;
+
+/**
+ * The search backend for THIS request: a per-session connected engine (Step 12
+ * bring-your-own-engine) if the visitor set one, else the configured default.
+ * cookies() only works in a request scope; outside one we use the default.
+ */
+export async function getSearchBackend(): Promise<EngineBackend> {
+  try {
+    const override = parseEngineCookie((await cookies()).get(ENGINE_COOKIE)?.value);
+    if (override) return override;
+  } catch {
+    // not in a request scope
+  }
+  return { url: SEARCH_API_URL, ...(SEARCH_API_TOKEN ? { token: SEARCH_API_TOKEN } : {}) };
+}
+
+function authHeaders(backend: EngineBackend): Record<string, string> {
+  return backend.token ? { authorization: `Bearer ${backend.token}` } : {};
+}
 
 export interface ResolveDeps {
   breaker: CircuitBreaker;
@@ -53,9 +75,11 @@ export async function searchShopWithFallback(
   queryString: string,
   fts: FtsParams,
 ): Promise<{ response: SearchResponse; lite: boolean }> {
+  const backend = await getSearchBackend();
   const full = async (): Promise<SearchResponse> => {
-    const res = await fetch(`${SEARCH_API_URL}/search?${queryString}`, {
+    const res = await fetch(`${backend.url}/search?${queryString}`, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
+      headers: authHeaders(backend),
     });
     if (!res.ok) throw new Error(`search service responded ${res.status}`);
     return SearchResponseSchema.parse(await res.json());
@@ -64,10 +88,11 @@ export async function searchShopWithFallback(
   return resolveSearch({ breaker: searchBreaker(), full, fallback });
 }
 
-/** Probe the search service for the status page (does not affect the breaker). */
+/** Probe the active search backend for the status page (does not affect the breaker). */
 export async function searchServiceHealthy(): Promise<boolean> {
   try {
-    const res = await fetch(`${SEARCH_API_URL}/health`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const backend = await getSearchBackend();
+    const res = await fetch(`${backend.url}/health`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     return res.ok;
   } catch {
     return false;

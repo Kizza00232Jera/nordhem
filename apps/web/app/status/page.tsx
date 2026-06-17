@@ -1,7 +1,10 @@
 import { sql } from "@nordhem/db";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
+import { EngineConnect } from "../components/engine-connect";
 import { db } from "../../lib/db";
+import { ENGINE_COOKIE, parseEngineCookie } from "../../lib/engine-cookie";
 import { searchBreaker, searchServiceHealthy } from "../../lib/search-source";
 
 export const metadata: Metadata = { title: "System status" };
@@ -41,6 +44,7 @@ function Row({ name, detail, label, tone }: { name: string; detail: string; labe
 
 export default async function StatusPage() {
   const [engineUp, dbUp] = await Promise.all([searchServiceHealthy(), dbHealthy()]);
+  const connected = parseEngineCookie((await cookies()).get(ENGINE_COOKIE)?.value);
   const breaker = searchBreaker().current;
   // The mode the storefront will actually serve right now.
   const lite = !engineUp || breaker === "open";
@@ -98,6 +102,8 @@ export default async function StatusPage() {
           Back to the shop
         </Link>
       </p>
+
+      <EngineConnect connectedUrl={connected?.url ?? null} />
     </main>
   );
 }
