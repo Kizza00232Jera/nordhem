@@ -9,7 +9,8 @@
     "test:integration": "vitest run --project integration",
     "download-wands": "tsx src/download-wands.ts",
     "curate-shop": "tsx src/curate/curate-cli.ts",
-    "fetch-images": "tsx src/curate/fetch-images-cli.ts"
+    "fetch-images": "tsx src/curate/fetch-images-cli.ts",
+    "import-images": "tsx src/curate/import-images.ts"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^12.0.1",

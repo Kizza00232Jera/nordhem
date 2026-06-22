@@ -115,6 +115,7 @@ pnpm -F @nordhem/tools download-wands
 pnpm -F @nordhem/search load-wands
 pnpm -F @nordhem/search index-products
 pnpm -F @nordhem/tools curate-shop
+pnpm -F @nordhem/tools import-images   # restore the judged storefront photos
 pnpm -F @nordhem/search index-shop
 pnpm -F @nordhem/search load-eval
 pnpm -F @nordhem/search seed-synonyms
