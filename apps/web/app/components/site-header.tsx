@@ -13,36 +13,47 @@ export async function SiteHeader() {
       <p className="bg-linen px-4 py-1.5 text-center text-[13px] text-ink-muted">
         Free delivery over €499 · 365-day returns
       </p>
-      <div className="mx-auto flex w-full max-w-7xl items-center gap-6 px-4 py-4 sm:px-6">
-        <Link href="/" className="shrink-0 text-lg font-bold tracking-[0.18em]">
+      {/* flex-wrap + order: on phones the search drops to its own full-width
+          row below the logo/icons (the JYSK mobile pattern), inline from md up.
+          This also kills the horizontal overflow — an <input> in a flex row has
+          an intrinsic min-width and won't shrink, so squeezing it beside the
+          logo and icons on a narrow phone pushed the page wider than the
+          viewport. A full-width row (and min-w-0 inline) lets it shrink. */}
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4 sm:px-6">
+        <Link
+          href="/"
+          className="order-1 shrink-0 text-lg font-bold tracking-[0.18em]"
+        >
           NORDHEM
         </Link>
 
         {/* useSearchParams needs a Suspense boundary; the fallback is the
             same input, inert, so the header never shifts. */}
-        <Suspense
-          fallback={
-            <form action="/search" className="relative mx-auto w-full max-w-xl">
-              <Search
-                aria-hidden
-                className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-ink-muted"
-                strokeWidth={1.75}
-              />
-              <input
-                type="text"
-                name="q"
-                placeholder="Search beds, sofas, lighting…"
-                aria-label="Search products"
-                autoComplete="off"
-                className="h-11 w-full rounded-xs border border-line bg-card pl-11 pr-4 text-[15px] placeholder:text-ink-muted"
-              />
-            </form>
-          }
-        >
-          <SearchCombobox />
-        </Suspense>
+        <div className="order-3 w-full min-w-0 md:order-2 md:mx-auto md:w-auto md:flex-1 md:max-w-xl">
+          <Suspense
+            fallback={
+              <form action="/search" className="relative w-full">
+                <Search
+                  aria-hidden
+                  className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-ink-muted"
+                  strokeWidth={1.75}
+                />
+                <input
+                  type="text"
+                  name="q"
+                  placeholder="Search beds, sofas, lighting…"
+                  aria-label="Search products"
+                  autoComplete="off"
+                  className="h-11 w-full rounded-xs border border-line bg-card pl-11 pr-4 text-[15px] placeholder:text-ink-muted"
+                />
+              </form>
+            }
+          >
+            <SearchCombobox />
+          </Suspense>
+        </div>
 
-        <div className="flex shrink-0 items-center gap-1 text-ink-muted">
+        <div className="order-2 ml-auto flex shrink-0 items-center gap-1 text-ink-muted md:order-3 md:ml-0">
           <Link
             href={user ? "/orders" : "/login"}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xs px-2 hover:text-ink"

@@ -118,7 +118,7 @@ export function SearchCombobox() {
   return (
     <form
       action="/search"
-      className="relative mx-auto w-full max-w-xl"
+      className="relative w-full"
       onSubmit={(e) => {
         e.preventDefault();
         submitSearch();

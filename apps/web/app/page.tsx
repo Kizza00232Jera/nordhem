@@ -84,8 +84,10 @@ export default async function Home() {
                     )}
                   </div>
                   <div className="px-4 py-3">
-                    <h3 className="text-[15px] font-semibold">{category.title}</h3>
-                    <p className="mt-0.5 line-clamp-1 text-[13px] text-ink-muted">
+                    <h3 className="truncate text-[15px] font-semibold">
+                      {category.title}
+                    </h3>
+                    <p className="mt-0.5 line-clamp-2 min-h-[2.5em] text-[13px] leading-snug text-ink-muted">
                       {category.blurb}
                     </p>
                   </div>

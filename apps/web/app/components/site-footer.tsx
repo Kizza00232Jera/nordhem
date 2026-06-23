@@ -36,6 +36,11 @@ export function SiteFooter() {
                 Service status
               </Link>
             </li>
+            <li>
+              <Link href="/studio" className="hover:text-paper">
+                Search Studio
+              </Link>
+            </li>
           </ul>
         </div>
       </div>

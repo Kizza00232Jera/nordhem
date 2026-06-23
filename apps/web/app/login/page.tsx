@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AuthForm } from "../components/auth-form";
+import { DemoStudioHint } from "../components/demo-studio-hint";
 import { googleEnabled } from "../../lib/auth";
 import { getCurrentUser } from "../../lib/session";
 
@@ -16,7 +17,10 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 md:py-24">
-      <AuthForm mode="login" googleEnabled={googleEnabled} next={next ?? "/"} />
+      <div className="mx-auto w-full max-w-sm">
+        <AuthForm mode="login" googleEnabled={googleEnabled} next={next ?? "/"} />
+        <DemoStudioHint />
+      </div>
     </main>
   );
 }

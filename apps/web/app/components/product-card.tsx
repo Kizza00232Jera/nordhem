@@ -64,7 +64,10 @@ export function ProductCard({
             {product.name}
           </Link>
         </h3>
-        <div className="mt-1.5 flex items-baseline justify-between gap-2">
+        {/* Price and rating stack on their own lines: a four/five-digit review
+            count ("76,338 ratings") never fits beside the price on a half-width
+            phone card, so side-by-side wrapped uglily. Vertical always fits. */}
+        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <p className="tnum text-[15px] font-semibold">
             {formatPrice(product.priceCents)}
           </p>
@@ -72,7 +75,7 @@ export function ProductCard({
             <p className="flex items-center gap-1 text-[13px] text-ink-muted">
               <Star aria-hidden className="size-3.5 fill-amber text-amber" strokeWidth={1.5} />
               <span className="tnum">
-                {product.averageRating.toFixed(1)} ({product.ratingCount})
+                {product.averageRating.toFixed(1)} ({product.ratingCount.toLocaleString()})
               </span>
             </p>
           ) : null}

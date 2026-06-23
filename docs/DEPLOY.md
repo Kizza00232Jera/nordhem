@@ -35,7 +35,7 @@ Alternatively, apply the Drizzle migrations against Neon and run the loaders poi
 | `DATABASE_URL_UNPOOLED` | Yes (ops) | Direct Postgres connection from the integration. Used for the one-time load and for migrations, not by the running app. |
 | `BETTER_AUTH_SECRET` | Yes | Signs sessions. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. |
 | `BETTER_AUTH_URL` | Yes | Your production origin, e.g. `https://nordhem.vercel.app`. Must match the deployed domain or auth redirects break. |
-| `ADMIN_EMAILS` | Yes (for studio) | Comma-separated editor allowlist. Sign up with one of these emails to reach `/studio` in production. If unset, the studio is locked for everyone. |
+| `ADMIN_EMAILS` | Yes (for studio) | Comma-separated editor allowlist. Sign up with one of these emails to reach `/studio` in production. If unset, the studio is locked for everyone. The shared demo account (`demo@nordhem.store`, shown on the login page) must be included here. |
 | `SEARCH_API_URL` | Optional | The tunnel URL of the self-hosted search service. Unset means the site runs in lite mode. |
 | `SEARCH_API_TOKEN` | Optional | Shared bearer token guarding the tunnelled search service. Must match the token the PC service runs with. |
 | `CHAT_API_KEY` | Optional | Enables the shopping chatbot via an OpenAI-compatible provider. Leave blank to hide it. Can also be configured in `/studio/settings` instead. |
